@@ -7,29 +7,46 @@ import (
 	"strings"
 )
 
+// NoAttrExists is returned when SelectAttr is called with a key that no
+// attributes of the element contain.
 var NoAttrExists = Attr{}
+
+// NoElementExists is returned when SelectElement is called with a tag that no
+// child elements of the element contain.
 var NoElementExists = Element{}
 
+// Token is an interface implemented by things that can be a child of an
+// element.
 type Token interface {
 	write(w *bufio.Writer)
 }
 
+// Element represents an XML element.
 type Element struct {
 	Space, Tag string
 	Attr       []Attr
 	Child      []Token
 }
 
+// Transformer is an interface implemented by types that can transform
+// themselves into an Element.
+type Transformer interface {
+	TransformElement() Element
+}
+
+// Attr represents an attribute of an XML element.
 type Attr struct {
 	Space, Key string
 	Value      string
 }
 
+// CharData represents the character data of an XML element.
 type CharData struct {
 	Data       string
 	whitespace bool
 }
 
+// WriteTo implements io.WriterTO
 func (e Element) WriteTo(w io.Writer) (n int64, err error) {
 	cw := newCountWriter(w)
 	b := bufio.NewWriter(cw)
@@ -38,12 +55,14 @@ func (e Element) WriteTo(w io.Writer) (n int64, err error) {
 	return cw.bytes, err
 }
 
+// WriteBytes serializes the Element into a slice of bytes.
 func (e Element) WriteBytes() []byte {
 	var buf bytes.Buffer
 	e.WriteTo(&buf)
 	return buf.Bytes()
 }
 
+// Text returns the text data of the element.
 func (e Element) Text() string {
 	if len(e.Child) == 0 {
 		return ""
@@ -55,6 +74,7 @@ func (e Element) Text() string {
 	return ""
 }
 
+// SetText sets the text data of the element.
 func (e Element) SetText(text string) Element {
 	if len(e.Child) > 0 {
 		if cd, ok := e.Child[0].(CharData); ok {
@@ -69,6 +89,8 @@ func (e Element) SetText(text string) Element {
 	return e
 }
 
+// SelectAttr returns the attribute with the given key. The key can include a
+// namespace. If no attribute exists NoAttrExists is returned.
 func (e Element) SelectAttr(key string) Attr {
 	space, skey := decompose(key)
 	for _, a := range e.Attr {
@@ -79,6 +101,8 @@ func (e Element) SelectAttr(key string) Attr {
 	return NoAttrExists
 }
 
+// SelectAttrValue returns the attribute with the given key. The key can
+// include a namespace. If no attribute exists, the default value is returned.
 func (e Element) SelectAttrValue(key, dflt string) string {
 	space, key := decompose(key)
 	for _, a := range e.Attr {
@@ -90,6 +114,8 @@ func (e Element) SelectAttrValue(key, dflt string) string {
 	return dflt
 }
 
+// ChildElements returns all children of the element who are elements
+// themselves.
 func (e Element) ChildElements() (elements []Element) {
 	for _, t := range e.Child {
 		if c, ok := t.(Element); ok {
@@ -99,6 +125,9 @@ func (e Element) ChildElements() (elements []Element) {
 	return
 }
 
+// SelectElement returns the element with the given tag. The tag can include
+// a namespace. If there is no child element with the tag, NoElementExists is
+// returned.
 func (e Element) SelectElement(tag string) Element {
 	space, tag := decompose(tag)
 	for _, t := range e.Child {
@@ -173,6 +202,8 @@ func escape(s string) string {
 	return xmlReplacer.Replace(s)
 }
 
+// countWriter is used to count the number of bytes written to an underlying
+// io.Writer.
 type countWriter struct {
 	w     io.Writer
 	bytes int64
