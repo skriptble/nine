@@ -30,6 +30,8 @@ func NewStreamHeader(el Element) (strm StreamHeader, err error) {
 			strm.To = attr.Value
 		case "from":
 			strm.From = attr.Value
+		case "id":
+			strm.ID = attr.Value
 		case "lang":
 			if attr.Space == "xml" {
 				strm.Lang = attr.Value
@@ -55,6 +57,8 @@ func (s StreamHeader) WriteBytes() []byte {
 	buf.WriteString(fmt.Sprintf("to='%s'", s.To))
 	buf.WriteByte(' ')
 	buf.WriteString(fmt.Sprintf("from='%s'", s.From))
+	buf.WriteByte(' ')
+	buf.WriteString(fmt.Sprintf("id='%s'", s.ID))
 	buf.WriteByte(' ')
 	buf.WriteString(fmt.Sprintf("version='%s'", s.Version))
 	buf.WriteByte(' ')

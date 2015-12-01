@@ -18,6 +18,7 @@ func TestNewStreamHeader(t *testing.T) {
 		Attr: []Attr{
 			{Key: "to", Value: "foo"},
 			{Key: "from", Value: "bar"},
+			{Key: "id", Value: "randomid"},
 			{Space: "xml", Key: "lang", Value: "en"},
 			{Key: "version", Value: "1.0"},
 			{Key: "xmlns", Value: "jabber:client"},
@@ -25,6 +26,7 @@ func TestNewStreamHeader(t *testing.T) {
 	}
 	want = StreamHeader{
 		To: "foo", From: "bar",
+		ID:   "randomid",
 		Lang: "en", Version: "1.0",
 		Namespace: "jabber:client",
 	}
@@ -64,10 +66,11 @@ func TestStreamHeaderWriteBytes(t *testing.T) {
 	// Should be able to write StreamHeader to bytes.
 	strm = StreamHeader{
 		To: "foo", From: "bar",
+		ID:   "randomid",
 		Lang: "en", Version: "1.0",
 		Namespace: "jabber:client",
 	}
-	want = []byte("<stream:stream to='foo' from='bar' version='1.0' xml:lang='en' xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams'>")
+	want = []byte("<stream:stream to='foo' from='bar' id='randomid' version='1.0' xml:lang='en' xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams'>")
 	got = strm.WriteBytes()
 
 	if !reflect.DeepEqual(want, got) {
