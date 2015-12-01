@@ -8,8 +8,8 @@ import (
 	"github.com/skriptble/nine/element"
 )
 
-// StreamClosed is the error returned when the stream has been closed.
-var StreamClosed = errors.New("Stream Closed")
+// ErrStreamClosed is the error returned when the stream has been closed.
+var ErrStreamClosed = errors.New("Stream Closed")
 
 // Stream represents an XML Stream
 type Stream struct {
@@ -50,7 +50,7 @@ func (s Stream) Next() (el element.Element, err error) {
 		case xml.StartElement:
 			return s.createElement(elem)
 		case xml.EndElement:
-			err = StreamClosed
+			err = ErrStreamClosed
 			return
 		}
 	}

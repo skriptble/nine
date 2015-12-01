@@ -78,7 +78,7 @@ func TestStreamNext(t *testing.T) {
 	}
 
 	_, err = strm.Next()
-	if err != StreamClosed {
+	if err != ErrStreamClosed {
 		t.Error("Expected stream to be closed after reading </stream:stream> tag.")
 	}
 }
