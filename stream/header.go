@@ -1,14 +1,15 @@
-package element
+package stream
 
 import (
 	"bytes"
 	"fmt"
 
+	"github.com/skriptble/nine/element"
 	"github.com/skriptble/nine/namespace"
 )
 
-// Stream represents an XML stream element.
-type StreamHeader struct {
+// Header represents an XML stream element.
+type Header struct {
 	To, From  string
 	ID        string
 	Lang      string
@@ -16,9 +17,9 @@ type StreamHeader struct {
 	Namespace string
 }
 
-// NewStream attempts to transform the Element into a Stream. Returns an error
+// NewHeader attempts to transform the Element into a Stream. Returns an error
 // if the element is not a stream element.
-func NewStreamHeader(el Element) (strm StreamHeader, err error) {
+func NewHeader(el element.Element) (strm Header, err error) {
 	if el.Space != "stream" && el.Tag != "stream" {
 		err = fmt.Errorf("Element is not <stream:stream> it is a <%s:%s>", el.Space, el.Tag)
 		return
@@ -50,24 +51,24 @@ func NewStreamHeader(el Element) (strm StreamHeader, err error) {
 // This is done instead of implementing element.Transformer because
 // elements written to the stream are automatically closed and the stream
 // header should not close until the stream is closed.
-func (s StreamHeader) WriteBytes() []byte {
+func (h Header) WriteBytes() []byte {
 	var buf bytes.Buffer
 	buf.WriteString("<stream:stream")
 	buf.WriteByte(' ')
-	buf.WriteString(fmt.Sprintf("to='%s'", s.To))
+	buf.WriteString(fmt.Sprintf("to='%s'", h.To))
 	buf.WriteByte(' ')
-	buf.WriteString(fmt.Sprintf("from='%s'", s.From))
+	buf.WriteString(fmt.Sprintf("from='%s'", h.From))
 	buf.WriteByte(' ')
-	buf.WriteString(fmt.Sprintf("id='%s'", s.ID))
+	buf.WriteString(fmt.Sprintf("id='%s'", h.ID))
 	buf.WriteByte(' ')
-	buf.WriteString(fmt.Sprintf("version='%s'", s.Version))
+	buf.WriteString(fmt.Sprintf("version='%s'", h.Version))
 	buf.WriteByte(' ')
-	if s.Lang != "" {
-		buf.WriteString(fmt.Sprintf("xml:lang='%s'", s.Lang))
+	if h.Lang != "" {
+		buf.WriteString(fmt.Sprintf("xml:lang='%s'", h.Lang))
 		buf.WriteByte(' ')
 	}
-	if s.Namespace != "" {
-		buf.WriteString(fmt.Sprintf("xmlns='%s'", s.Namespace))
+	if h.Namespace != "" {
+		buf.WriteString(fmt.Sprintf("xmlns='%s'", h.Namespace))
 		buf.WriteByte(' ')
 	}
 	buf.WriteString(fmt.Sprintf("xmlns:stream='%s'", namespace.Stream))

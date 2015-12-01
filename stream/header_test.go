@@ -1,21 +1,23 @@
-package element
+package stream
 
 import (
 	"errors"
 	"reflect"
 	"testing"
+
+	"github.com/skriptble/nine/element"
 )
 
-func TestNewStreamHeader(t *testing.T) {
+func TestNewHeader(t *testing.T) {
 	t.Parallel()
 
-	var want, got StreamHeader
-	var el Element
+	var want, got Header
+	var el element.Element
 	var err error
 
 	// Should be able to create StreamHeader from Element.
-	el = Element{Space: "stream", Tag: "stream",
-		Attr: []Attr{
+	el = element.Element{Space: "stream", Tag: "stream",
+		Attr: []element.Attr{
 			{Key: "to", Value: "foo"},
 			{Key: "from", Value: "bar"},
 			{Key: "id", Value: "randomid"},
@@ -24,13 +26,13 @@ func TestNewStreamHeader(t *testing.T) {
 			{Key: "xmlns", Value: "jabber:client"},
 		},
 	}
-	want = StreamHeader{
+	want = Header{
 		To: "foo", From: "bar",
 		ID:   "randomid",
 		Lang: "en", Version: "1.0",
 		Namespace: "jabber:client",
 	}
-	got, err = NewStreamHeader(el)
+	got, err = NewHeader(el)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
 	}
@@ -41,30 +43,30 @@ func TestNewStreamHeader(t *testing.T) {
 	}
 }
 
-func TestNewStreamHeaderError(t *testing.T) {
+func TestNewHeaderError(t *testing.T) {
 	t.Parallel()
 
 	var want, got error
-	var el Element
+	var el element.Element
 
 	// Should return error if the element is not a stream header.
-	el = Element{Space: "not", Tag: "astream"}
+	el = element.Element{Space: "not", Tag: "astream"}
 	want = errors.New("Element is not <stream:stream> it is a <not:astream>")
-	_, got = NewStreamHeader(el)
+	_, got = NewHeader(el)
 	if want.Error() != got.Error() {
 		t.Error("Should return error if the element is not a stream header.")
 		t.Errorf("\nWant:%+v\nGot :%+v", want, got)
 	}
 }
 
-func TestStreamHeaderWriteBytes(t *testing.T) {
+func TestHeaderWriteBytes(t *testing.T) {
 	t.Parallel()
 
 	var want, got []byte
-	var strm StreamHeader
+	var strm Header
 
 	// Should be able to write StreamHeader to bytes.
-	strm = StreamHeader{
+	strm = Header{
 		To: "foo", From: "bar",
 		ID:   "randomid",
 		Lang: "en", Version: "1.0",
