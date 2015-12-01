@@ -46,7 +46,7 @@ type CharData struct {
 	whitespace bool
 }
 
-// WriteTo implements io.WriterTO
+// WriteTo implements io.WriterTo
 func (e Element) WriteTo(w io.Writer) (n int64, err error) {
 	cw := newCountWriter(w)
 	b := bufio.NewWriter(cw)
