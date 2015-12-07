@@ -1,207 +1,165 @@
 package stream
 
 import (
-	"crypto/rand"
 	"encoding/xml"
 	"errors"
-	"fmt"
 	"io"
+	"log"
+	"net"
 
 	"github.com/skriptble/nine/element"
+	"github.com/skriptble/nine/element/stanza"
 )
 
-// Mode determines the mode of the stream.
-//
-// Currently this is either Initiating or Receiving for the stream initiating
-// entity or receiving entity, respectively.
-type Mode int
+// ErrRequireRestart is the error returned when the underlying transport
+// has been upgraded and the stream needs to be restarted.
+var ErrRequireRestart = errors.New("Transport upgrade. Restart stream.")
+
+type Status int
 
 const (
-	Initiating Mode = iota
-	Receiving
+	Closed Status = iota
+	Open   Status = 1 << iota
+	Restart
+	Secure
+	Auth
+	Bind
 )
 
-// ErrStreamClosed is the error returned when the stream has been closed.
-var ErrStreamClosed = errors.New("Stream Closed")
-
-// ErrHeaderNotSet is the error returned when start has been called on a stream
-// in initiating mode and the header has not yet been set.
-var ErrHeaderNotSet = errors.New("Stream Header has not been set")
-
-// Stream represents an XML Stream
-type Stream struct {
+type Properties struct {
 	Header
+	Status
 
-	*xml.Decoder
-	rw   io.ReadWriter
+	Features []element.Element
+}
+
+func NewProperties() Properties {
+	return Properties{Status: Open}
+}
+
+type FeatureHandler interface {
+	HandleFeature(Properties) Properties
+}
+
+type Transport interface {
+	io.Closer
+
+	WriteElement(el element.Element) error
+	WriteStanza(st stanza.Stanza) error
+	Next() (el element.Element, err error)
+	Start(Properties) (Properties, error)
+}
+
+type UpgradeableTransport interface {
+	Transport
+
+	// Upgrade upgrades the unlderying transport. Returns true if the transport
+	// was upgraded TLS.
+	Upgrade() (Transport, bool)
+}
+
+type Stream struct {
+	Properties
+
+	t         Transport
+	fhs       []FeatureHandler
+	eHandlers []ElementHandler
+	mHandlers []MessageHandler
+	pHandlers []PresenceHandler
+	iHandlers []IQHandler
+
 	mode Mode
 }
 
-// New creates a new Stream from the given io.ReadWriter.
-//
-// The mode parameter determines if this the initiating or recieving entity.
-func New(rw io.ReadWriter, mode Mode) Stream {
-	dec := xml.NewDecoder(rw)
-	return Stream{Decoder: dec, rw: rw, mode: mode}
+func New(t Transport, p Properties, mode Mode, eh []ElementHandler, fh []FeatureHandler) Stream {
+	return Stream{t: t, Properties: p, mode: mode, eHandlers: eh, fhs: fh}
 }
 
-// Start writes the stream header to the stream.
-//
-// If the stream is in initiating mode, the Header must be set before this
-// method is called.
-//
-// If the server is in receiving mode and the Header has not been set this
-// method will read a token from the stream, if the token is a stream header
-// it will generate a new stream id, flip the to and from fields, and set the
-// Header field.
-//
-// If the conditions are met for either mode, the stream header is sent and any
-// errors are returned.
-//
-// TODO(skriptble): Should there be a default from for the recieving mode?
-// Or should an error be returned if there is no from after the flip?
-func (s Stream) Start() (err error) {
-	if s.mode == Initiating {
-		if s.Header == (Header{}) {
-			return ErrHeaderNotSet
-		}
-		_, err = s.writeHeader()
-		return
+// TODO(skriptble): How should erros from running the stream be handled?
+func (s Stream) Run() {
+	// Start the stream
+	var props Properties = s.Properties
+	var err error
+	for _, fh := range s.fhs {
+		props = fh.HandleFeature(props)
 	}
-
-	if s.Header == (Header{}) {
-		var elem element.Element
-		var hdr Header
-		var id string
-
-		elem, err = s.Next()
-		if err != nil {
-			return
-		}
-
-		hdr, err = NewHeader(elem)
-		if err != nil {
-			return
-		}
-
-		id, err = genStreamID()
-		if err != nil {
-			return
-		}
-
-		hdr.ID = id
-		hdr.To, hdr.From = hdr.From, hdr.To
-		s.Header = hdr
-	}
-
-	_, err = s.writeHeader()
-	return
-}
-
-// TODO(skriptble): Does this need to return the bytes sent?
-func (s Stream) writeHeader() (n int, err error) {
-	b := s.Header.WriteBytes()
-	return s.Write(b)
-}
-
-// Write allows the writting of arbitrary bytes to the stream.
-func (s Stream) Write(p []byte) (n int, err error) {
-	return s.rw.Write(p)
-}
-
-// WriteElement writes an element to the stream.
-func (s Stream) WriteElement(el element.Element) (n int, err error) {
-	var b []byte
-	b = el.WriteBytes()
-	return s.rw.Write(b)
-}
-
-// Next returns the next element from the stream. Since an element is the only
-// valid thing and XML stream can return, this is the only method to read data
-// from a stream.
-func (s Stream) Next() (el element.Element, err error) {
-	var token xml.Token
-	for {
-		token, err = s.Token()
-		if err != nil {
-			return
-		}
-
-		switch elem := token.(type) {
-		case xml.StartElement:
-			return s.createElement(elem)
-		case xml.EndElement:
-			err = ErrStreamClosed
-			return
-		}
-	}
-}
-
-// createElement creates an element from the given xml.StartElement, populates
-// its attributes and children and returns it.
-func (s Stream) createElement(start xml.StartElement) (el element.Element, err error) {
-	var children []element.Token
-
-	el = element.Element{
-		Space: start.Name.Space,
-		Tag:   start.Name.Local,
-	}
-	for _, attr := range start.Attr {
-		el.Attr = append(
-			el.Attr,
-			element.Attr{
-				Space: attr.Name.Space,
-				Key:   attr.Name.Local,
-				Value: attr.Value,
-			},
-		)
-	}
-	// If this is a stream start return only this element.
-	if el.Tag == "stream" {
-		return
-	}
-
-	children, err = s.childElements()
-	el.Child = children
-	return
-}
-
-// childElements retrieves child tokens. This method should be called after
-// createElement.
-func (s Stream) childElements() (children []element.Token, err error) {
-	var token xml.Token
-	var el element.Element
-	for {
-		token, err = s.Token()
-		if err != nil {
-			return
-		}
-
-		switch elem := token.(type) {
-		case xml.StartElement:
-			el, err = s.createElement(elem)
-			if err != nil {
-				return
-			}
-			children = append(children, el)
-		case xml.EndElement:
-			return
-		case xml.CharData:
-			data := string(elem)
-			children = append(children, element.CharData{Data: data})
-		}
-	}
-}
-
-func genStreamID() (string, error) {
-	id := make([]byte, 16)
-	_, err := rand.Read(id)
+	s.Properties = props
+	s.Properties, err = s.t.Start(s.Properties)
 	if err != nil {
-		return "", err
+		log.Printf("Error while starting stream: %s", err)
 	}
+	// Start recieving elements
+	for {
+		el, err := s.t.Next()
+		if err != nil {
+			if err == ErrRequireRestart {
+				s.Properties.Status = s.Properties.Status | Restart
+				log.Println("Restart setup")
+			}
+			if _, ok := err.(*xml.SyntaxError); ok {
+				log.Println("XML Syntax Error", err)
+				err = s.t.WriteElement(element.StreamErrBadFormat)
+			}
+			if _, ok := err.(net.Error); ok || err == io.EOF {
+				break
+			}
+			if err == ErrStreamClosed {
+				s.t.Close()
+				break
+			}
+		}
 
-	id[8] = (id[8] | 0x80) & 0xBF
-	id[6] = (id[6] | 0x40) & 0x4F
+		if el.Tag == "starttls" {
+			ut, ok := s.t.(UpgradeableTransport)
+			if !ok {
+				continue
+			}
+			t, success := ut.Upgrade()
+			s.t = t
+			if success {
+				s.Properties.Status = s.Properties.Status | Secure
+			}
+			s.Properties.Features = []element.Element{}
+			for _, fh := range s.fhs {
+				s.Properties = fh.HandleFeature(s.Properties)
+			}
+			s.Properties, err = s.t.Start(s.Properties)
+			if err != nil {
+				log.Printf("Error while starting stream: %s", err)
+			}
+		}
 
-	return fmt.Sprintf("%x", id), nil
+		if iq, err := stanza.TransformIQ(el); err == nil {
+			for _, h := range s.iHandlers {
+				if !h.Match(iq) {
+					continue
+				}
+			}
+		}
+
+		log.Println("HANDLER TIME")
+		for i, h := range s.eHandlers {
+			if !h.Match(el) {
+				continue
+			}
+			var elems []element.Element
+			elems, s.eHandlers[i].FSM, s.Properties = h.FSM.HandleElement(el, s.Properties)
+			for _, elem := range elems {
+				s.t.WriteElement(elem)
+			}
+		}
+
+		// Restart stream as necessary
+		if s.Properties.Status&Restart != 0 {
+			s.Properties.Features = []element.Element{}
+			for _, fh := range s.fhs {
+				s.Properties = fh.HandleFeature(s.Properties)
+			}
+			s.Properties, err = s.t.Start(s.Properties)
+			if err != nil {
+				log.Printf("Error while starting stream: %s", err)
+			}
+		}
+		// Handle elements
+	}
 }
