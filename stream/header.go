@@ -19,6 +19,9 @@ type Header struct {
 
 // NewHeader attempts to transform the Element into a Stream. Returns an error
 // if the element is not a stream element.
+//
+// TODO(skriptble): Change the method signature to take an error so it can wrap
+// around a call to stream.Next()
 func NewHeader(el element.Element) (strm Header, err error) {
 	if el.Space != "stream" && el.Tag != "stream" {
 		err = fmt.Errorf("Element is not <stream:stream> it is a <%s:%s>", el.Space, el.Tag)

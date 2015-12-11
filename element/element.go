@@ -28,6 +28,22 @@ type Element struct {
 	Child      []Token
 }
 
+// New creates a new element using the tag. The tag is decomposed into its
+// space and tag if it contains a colon.
+func New(tag string) Element {
+	space, tag := decompose(tag)
+	return Element{Space: space, Tag: tag}
+}
+
+// AddAttr creates an Attr and appends it to the element. The key is decomposed
+// into a space and key if it contains a colon:
+func (e Element) AddAttr(key, value string) Element {
+	space, key := decompose(key)
+	attr := Attr{Key: key, Space: space, Value: value}
+	e.Attr = append(e.Attr, attr)
+	return e
+}
+
 // Transformer is an interface implemented by types that can transform
 // themselves into an Element.
 type Transformer interface {
@@ -125,13 +141,19 @@ func (e Element) ChildElements() (elements []Element) {
 	return
 }
 
+// AddChild adds the element to the parent's children.
+func (e Element) AddChild(el Element) Element {
+	e.Child = append(e.Child, el)
+	return e
+}
+
 // SelectElement returns the element with the given tag. The tag can include
 // a namespace. If there is no child element with the tag, NoElementExists is
 // returned.
 func (e Element) SelectElement(tag string) Element {
 	space, tag := decompose(tag)
 	for _, t := range e.Child {
-		if c, ok := t.(Element); ok && space == c.Space && tag == c.Tag {
+		if c, ok := t.(Element); ok && equalSpace(space, c.Space) && tag == c.Tag {
 			return c
 		}
 	}
@@ -172,9 +194,9 @@ func (a Attr) write(w *bufio.Writer) {
 		w.WriteByte(':')
 	}
 	w.WriteString(a.Key)
-	w.Write([]byte{'=', '"'})
+	w.Write([]byte{'=', '\''})
 	w.WriteString(escape(a.Value))
-	w.WriteByte('"')
+	w.WriteByte('\'')
 }
 
 func (c CharData) write(w *bufio.Writer) {
@@ -200,6 +222,14 @@ var xmlReplacer = strings.NewReplacer(
 
 func escape(s string) string {
 	return xmlReplacer.Replace(s)
+}
+
+func equalSpace(a, b string) bool {
+	if a == "" {
+		return true
+	}
+
+	return a == b
 }
 
 // countWriter is used to count the number of bytes written to an underlying
