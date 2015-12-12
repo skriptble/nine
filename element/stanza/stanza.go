@@ -7,7 +7,9 @@ import (
 	"github.com/skriptble/nine/jid"
 )
 
-var ErrNotIQ = errors.New("the provided element is not an IQ")
+var ErrNotIQ = errors.New("the provided element is not an IQ stanza")
+var ErrNotPresence = errors.New("the provided element is not a Presence stanza")
+var ErrNotMessage = errors.New("the provided element is not a Message stanza")
 
 type Stanza struct {
 	To   string
@@ -19,6 +21,11 @@ type Stanza struct {
 	Children   []element.Element
 	Data       string
 	Tag, Space string
+}
+
+func (s Stanza) String() string {
+	b := s.TransformElement().WriteBytes()
+	return string(b)
 }
 
 func NewStanza(to, from jid.JID, id, sType string) Stanza {
@@ -93,61 +100,52 @@ type Message struct {
 	Stanza
 }
 
+func (m Message) String() string {
+	b := m.TransformElement().WriteBytes()
+	return string(b)
+}
+
+func TransformMessage(el element.Element) (Message, error) {
+	if el.Tag != "message" {
+		return Message{}, ErrNotMessage
+	}
+	message := Message{}
+	message.To = el.SelectAttrValue("to", "")
+	message.From = el.SelectAttrValue("from", "")
+	message.ID = el.SelectAttrValue("id", "")
+	message.Type = el.SelectAttrValue("type", "")
+	message.Lang = el.SelectAttrValue("xml:lang", "")
+	message.Data = el.Text()
+
+	message.Children = el.ChildElements()
+	message.Tag, message.Space = el.Tag, el.Space
+
+	return message, nil
+}
+
 type Presence struct {
 	Stanza
 }
 
-type IQ struct {
-	Stanza
+func (p Presence) String() string {
+	b := p.TransformElement().WriteBytes()
+	return string(b)
 }
 
-// IQType is the type of an IQ.
-type IQType string
-
-const (
-	IQGet    IQType = "get"
-	IQSet    IQType = "set"
-	IQResult IQType = "result"
-	IQError  IQType = "error"
-)
-
-func IsIQ(el element.Element) bool {
-	return el.Tag == "iq"
-}
-
-func TransformIQ(el element.Element) (IQ, error) {
-	if el.Tag != "iq" {
-		return IQ{}, ErrNotIQ
+func TransformPresence(el element.Element) (Presence, error) {
+	if el.Tag != "presence" {
+		return Presence{}, ErrNotPresence
 	}
-	iq := IQ{}
-	iq.To = el.SelectAttrValue("to", "")
-	iq.From = el.SelectAttrValue("from", "")
-	iq.ID = el.SelectAttrValue("id", "")
-	iq.Type = el.SelectAttrValue("type", "")
-	iq.Lang = el.SelectAttrValue("xml:lang", "")
-	iq.Data = el.Text()
+	presence := Presence{}
+	presence.To = el.SelectAttrValue("to", "")
+	presence.From = el.SelectAttrValue("from", "")
+	presence.ID = el.SelectAttrValue("id", "")
+	presence.Type = el.SelectAttrValue("type", "")
+	presence.Lang = el.SelectAttrValue("xml:lang", "")
+	presence.Data = el.Text()
 
-	iq.Children = el.ChildElements()
-	iq.Tag, iq.Space = el.Tag, el.Space
+	presence.Children = el.ChildElements()
+	presence.Tag, presence.Space = el.Tag, el.Space
 
-	return iq, nil
-}
-
-func (iq IQ) TransformElement() element.Element {
-	iq.Stanza = iq.Stanza.SetTag("iq")
-	return iq.Stanza.TransformElement()
-}
-
-func (iq IQ) TransformStanza() Stanza {
-	return iq.Stanza
-}
-
-func (iq IQ) LoadStanza(s Stanza) IQ {
-	s = s.SetTag("iq")
-	return IQ{Stanza: s}
-}
-
-func NewIQResult(to, from jid.JID, id string, iqType IQType) IQ {
-	s := NewStanza(to, from, id, string(iqType))
-	return IQ{Stanza: s}
+	return presence, nil
 }

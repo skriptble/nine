@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/xml"
 	"fmt"
+	"log"
 	"net"
 
 	"github.com/skriptble/nine/element"
@@ -65,6 +66,31 @@ func (t *TCP) WriteStanza(st stanza.Stanza) error {
 // This transport hides the starttls upgrade feature so if a starttls element
 // would have been returned, the connection is upgraded instead.
 func (t *TCP) Next() (el element.Element, err error) {
+	defer func() {
+		if el.Tag == "starttls" && !t.secure {
+			err = t.WriteElement(element.TLSProceed)
+			if err != nil {
+				return
+			}
+			tlsConn := tls.Server(t.Conn, t.conf)
+			err = tlsConn.Handshake()
+			if err != nil {
+				return
+			}
+			conn := net.Conn(tlsConn)
+			t.Conn = conn
+			t.Decoder = xml.NewDecoder(conn)
+			el = element.Element{}
+			err = stream.ErrRequireRestart
+			t.secure = true
+			log.Println("Done upgrading connection")
+		}
+		// If we get a syntax error we need to create a new xml.Decoder as the
+		// current one will no longer return tokens, only the previous error.
+		if _, ok := err.(*xml.SyntaxError); ok {
+			t.Decoder = xml.NewDecoder(t.Conn)
+		}
+	}()
 	var token xml.Token
 	for {
 		token, err = t.Token()
@@ -159,7 +185,7 @@ func (t *TCP) Start(props stream.Properties) (stream.Properties, error) {
 		ftrs = ftrs.AddChild(f)
 	}
 	// Stream features
-	if t.conf != nil && props.Status&(stream.Secure) == 0 {
+	if t.conf != nil && !t.secure {
 		tlsFeature := element.StartTLS
 		if t.tlsRequired {
 			tlsFeature = tlsFeature.AddChild(element.Required)

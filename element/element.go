@@ -78,6 +78,11 @@ func (e Element) WriteBytes() []byte {
 	return buf.Bytes()
 }
 
+// String implements the fmt.Stringer interface.
+func (e Element) String() string {
+	return string(e.WriteBytes())
+}
+
 // Text returns the text data of the element.
 func (e Element) Text() string {
 	if len(e.Child) == 0 {

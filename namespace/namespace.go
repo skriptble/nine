@@ -5,4 +5,7 @@ const (
 	TLS    = "urn:ietf:params:xml:ns:xmpp-tls"
 	SASL   = "urn:ietf:params:xml:ns:xmpp-sasl"
 	Bind   = "urn:ietf:params:xml:ns:xmpp-bind"
+	Stanza = "urn:ietf:params:xml:ns:xmpp-stanzas"
+	// TODO: Move this to Ten
+	Session = "urn:ietf:params:xml:ns:xmpp-session"
 )
