@@ -106,7 +106,6 @@ func (t *TCP) Next() (el element.Element, err error) {
 			return
 		}
 	}
-	return
 }
 
 func (t *TCP) Upgrade() (stream.Transport, bool) {
