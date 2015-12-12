@@ -18,11 +18,11 @@ var ErrRequireRestart = errors.New("Transport upgrade. Restart stream.")
 
 // Trace is the trace logger for the stream package. Outputs useful
 // tracing information.
-var Trace *log.Logger = log.New(ioutil.Discard, "[TRACE][stream]", log.LstdFlags|log.Lshortfile)
+var Trace *log.Logger = log.New(ioutil.Discard, "[TRACE] [stream] ", log.LstdFlags|log.Lshortfile)
 
 // Debug is the debug logger for the stream package. Outputs useful
 // debugging information.
-var Debug *log.Logger = log.New(ioutil.Discard, "[DEBUG][stream]", log.LstdFlags|log.Lshortfile)
+var Debug *log.Logger = log.New(ioutil.Discard, "[DEBUG] [stream] ", log.LstdFlags|log.Lshortfile)
 
 type Status int
 
