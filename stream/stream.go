@@ -12,6 +12,17 @@ import (
 	"github.com/skriptble/nine/element/stanza"
 )
 
+// ErrStreamClosed is the error returned when the stream has been closed.
+var ErrStreamClosed = errors.New("Stream Closed")
+
+// ErrHeaderNotSet is the error returned when start has been called on a stream
+// in initiating mode and the header has not yet been set.
+var ErrHeaderNotSet = errors.New("Stream Header has not been set")
+
+// ErrNilTransport is the error returned when the Transport for a stream has
+// not been set.
+var ErrNilTransport = errors.New("Stream Transport is not set")
+
 // ErrRequireRestart is the error returned when the underlying transport
 // has been upgraded and the stream needs to be restarted.
 var ErrRequireRestart = errors.New("Transport upgrade. Restart stream.")
