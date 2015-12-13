@@ -5,6 +5,8 @@ import (
 	"github.com/skriptble/nine/jid"
 )
 
+var IQEmpty = IQ{}
+
 type IQ struct {
 	Stanza
 }
@@ -23,9 +25,9 @@ func IsIQ(el element.Element) bool {
 	return el.Tag == "iq"
 }
 
-func TransformIQ(el element.Element) (IQ, error) {
+func TransformIQ(el element.Element) IQ {
 	if el.Tag != "iq" {
-		return IQ{}, ErrNotIQ
+		return IQEmpty
 	}
 	iq := IQ{}
 	iq.To = el.SelectAttrValue("to", "")
@@ -38,7 +40,7 @@ func TransformIQ(el element.Element) (IQ, error) {
 	iq.Children = el.ChildElements()
 	iq.Tag, iq.Space = el.Tag, el.Space
 
-	return iq, nil
+	return iq
 }
 
 func (iq IQ) TransformElement() element.Element {

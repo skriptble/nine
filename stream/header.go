@@ -10,6 +10,12 @@ import (
 
 // Header represents an XML stream element.
 type Header struct {
+	// To and From are taken from the persepctive of the stream holder. In
+	// receiving mode, To is the connected client's JID and From is either
+	// the server's domain or the client's bare jid.
+	// In initiating mode, To is the server and from is usually blank as
+	// the server is responsible for adding the From field to any outgoinging
+	// stanza
 	To, From  string
 	ID        string
 	Lang      string
@@ -19,9 +25,6 @@ type Header struct {
 
 // NewHeader attempts to transform the Element into a Stream. Returns an error
 // if the element is not a stream element.
-//
-// TODO(skriptble): Change the method signature to take an error so it can wrap
-// around a call to stream.Next()
 func NewHeader(el element.Element) (strm Header, err error) {
 	if el.Space != "stream" && el.Tag != "stream" {
 		err = fmt.Errorf("Element is not <stream:stream> it is a <%s:%s>", el.Space, el.Tag)

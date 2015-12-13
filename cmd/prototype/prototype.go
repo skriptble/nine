@@ -86,44 +86,66 @@ func main() {
 		})
 		bindHandler := bind.NewHandler()
 		sessionHandler := bind.NewSessionHandler()
+		iqHandler := stream.NewIQMux().
+			Handle(namespace.Bind, "bind", string(stanza.IQSet), bindHandler).
+			Handle(namespace.Session, "session", string(stanza.IQSet), sessionHandler)
+
+		if iqHandler.Err() != nil {
+			log.Fatal(iqHandler.Err())
+		}
+
+		pHandler := stream.NewPresenceMux()
+
+		elHandler := stream.NewElementMux().
+			Handle(namespace.SASL, "auth", saslHandler).
+			Handle(namespace.SASL, "response", saslHandler).
+			Handle(namespace.Client, "iq", iqHandler).
+			Handle(namespace.Client, "presence", pHandler)
+
+		if elHandler.Err() != nil {
+			log.Fatal(iqHandler.Err())
+		}
+
 		fhs := []stream.FeatureHandler{
 			saslHandler,
 			bindHandler,
 			// sessionHandler,
 		}
-		ehs := []stream.ElementHandler{
-			{Tag: "auth", Space: namespace.SASL,
-				FSM: saslHandler},
-		}
-		ihs := []stream.IQHandler{
-			{
-				Tag: "bind", Space: namespace.Bind,
-				Type: string(stanza.IQSet),
-				FSM:  bindHandler,
-			},
-			{
-				Tag: "session", Space: namespace.Session,
-				Type: string(stanza.IQSet),
-				FSM:  sessionHandler,
-			},
-			// This should always be last.
-			{
-				Tag: "*", Space: "*",
-				Type: "*",
-				FSM:  stream.NewHandler(),
-			},
-		}
-		mhs := []stream.MessageHandler{}
-		phs := []stream.PresenceHandler{}
+		// ehs := []stream.ElementMux{
+		// 	{Tag: "auth", Space: namespace.SASL,
+		// 		FSM: saslHandler},
+		// }
+		// ihs := []stream.IQMux{
+		// 	{
+		// 		Tag: "bind", Space: namespace.Bind,
+		// 		Type: string(stanza.IQSet),
+		// 		FSM:  bindHandler,
+		// 	},
+		// 	{
+		// 		Tag: "session", Space: namespace.Session,
+		// 		Type: string(stanza.IQSet),
+		// 		FSM:  sessionHandler,
+		// 	},
+		// 	// This should always be last.
+		// 	{
+		// 		Tag: "*", Space: "*",
+		// 		Type: "*",
+		// 		FSM:  stream.NewHandler(),
+		// 	},
+		// }
+		// mhs := []stream.MessageMux{}
+		// phs := []stream.PresenceMux{}
 
 		tp := transport.NewTCP(conn, stream.Receiving, TLSConfig, true)
 		props := stream.NewProperties()
-		s := stream.New(tp, props, stream.Receiving, true).
+		props.Domain = "localhost"
+		s := stream.New(tp, elHandler, stream.Receiving).
 			AddFeatureHandlers(fhs...).
-			AddElementHandlers(ehs...).
-			AddIQHandlers(ihs...).
-			AddMessageHandlers(mhs...).
-			AddPresenceHandlers(phs...)
+			SetProperties(props)
+		// AddElementHandlers(ehs...).
+		// AddIQHandlers(ihs...).
+		// AddMessageHandlers(mhs...).
+		// AddPresenceHandlers(phs...)
 		go s.Run()
 	}
 }
@@ -137,48 +159,49 @@ func run(state stream.FSMv0, s stream.Streamv0) {
 type Holder struct{}
 
 func (h Holder) Next(s stream.Streamv0) (stream.FSMv0, stream.Streamv0) {
-	el, _ := s.Next()
-	iq, _ := stanza.TransformIQ(el)
+	// el, _ := s.Next()
+	// iq, _ := stanza.TransformIQ(el)
 
-	res := stanza.IQ{
-		stanza.Stanza{
-			ID:   iq.ID,
-			Type: "result",
-			To:   "skriptble@localhost/FullStack-WebDev-Pro",
-			From: "localhost",
-		},
-	}
-	s.WriteElement(res.TransformElement())
+	// res := stanza.IQ{
+	// 	stanza.Stanza{
+	// 		ID:   iq.ID,
+	// 		Type: "result",
+	// 		To:   "skriptble@localhost/FullStack-WebDev-Pro",
+	// 		From: "localhost",
+	// 	},
+	// }
+	// s.WriteElement(res.TransformElement())
 
-	el, _ = s.Next()
-	iq, _ = stanza.TransformIQ(el)
+	// el, _ = s.Next()
+	// iq, _ = stanza.TransformIQ(el)
 
-	res = stanza.IQ{
-		stanza.Stanza{
-			ID:   iq.ID,
-			Type: "result",
-			To:   "skriptble@localhost/FullStack-WebDev-Pro",
-			From: "localhost",
-		},
-	}
-	s.WriteElement(res.TransformElement())
+	// res = stanza.IQ{
+	// 	stanza.Stanza{
+	// 		ID:   iq.ID,
+	// 		Type: "result",
+	// 		To:   "skriptble@localhost/FullStack-WebDev-Pro",
+	// 		From: "localhost",
+	// 	},
+	// }
+	// s.WriteElement(res.TransformElement())
 
-	el, _ = s.Next()
-	iq, _ = stanza.TransformIQ(el)
+	// el, _ = s.Next()
+	// iq, _ = stanza.TransformIQ(el)
 
-	res = stanza.IQ{
-		stanza.Stanza{
-			ID:   iq.ID,
-			Type: "result",
-			To:   "skriptble@localhost/FullStack-WebDev-Pro",
-			From: "localhost",
-		},
-	}
-	s.WriteElement(res.TransformElement())
+	// res = stanza.IQ{
+	// 	stanza.Stanza{
+	// 		ID:   iq.ID,
+	// 		Type: "result",
+	// 		To:   "skriptble@localhost/FullStack-WebDev-Pro",
+	// 		From: "localhost",
+	// 	},
+	// }
+	// s.WriteElement(res.TransformElement())
 
-	for {
-		s.Next()
-	}
+	// for {
+	// 	s.Next()
+	// }
+	// return nil, s
 	return nil, s
 }
 

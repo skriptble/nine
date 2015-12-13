@@ -10,17 +10,6 @@ import (
 	"github.com/skriptble/nine/element"
 )
 
-// Mode determines the mode of the stream.
-//
-// Currently this is either Initiating or Receiving for the stream initiating
-// entity or receiving entity, respectively.
-type Mode int
-
-const (
-	Initiating Mode = iota
-	Receiving
-)
-
 // ErrStreamClosed is the error returned when the stream has been closed.
 var ErrStreamClosed = errors.New("Stream Closed")
 

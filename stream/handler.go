@@ -23,3 +23,19 @@ func (h Handler) HandleIQ(iq stanza.IQ, props Properties) ([]stanza.Stanza, Prop
 	sts = append(sts, res.TransformStanza())
 	return sts, props
 }
+
+type UnsupportedStanza struct{}
+
+func (us UnsupportedStanza) HandleElement(el element.Element, p Properties) ([]element.Element, Properties) {
+	return []element.Element{element.StreamError.UnsupportedStanzaType}, p
+}
+
+type ServiceUnavailable struct{}
+
+func (su ServiceUnavailable) HandleIQ(iq stanza.IQ, p Properties) ([]stanza.Stanza, Properties) {
+	// iq.To = p.To
+	// iq.From = p.Domain
+	res := stanza.NewIQError(iq, element.Stanza.ServiceUnavailable)
+
+	return []stanza.Stanza{res.TransformStanza()}, p
+}

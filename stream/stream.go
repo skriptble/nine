@@ -27,23 +27,36 @@ var Debug *log.Logger = log.New(ioutil.Discard, "[DEBUG] [stream] ", log.LstdFla
 type Status int
 
 const (
-	Closed Status = iota
-	Open   Status = 1 << iota
+	Open   Status = iota
+	Closed Status = 1 << iota
 	Restart
 	Secure
 	Auth
 	Bind
 )
 
+// Mode determines the mode of the stream.
+//
+// Currently this is either Initiating or Receiving for the stream initiating
+// entity or receiving entity, respectively.
+type Mode int
+
+const (
+	Receiving Mode = iota
+	Initiating
+)
+
 type Properties struct {
 	Header
 	Status
 
+	// The XMPP domain of this server.
+	Domain   string
 	Features []element.Element
 }
 
 func NewProperties() Properties {
-	return Properties{Status: Open}
+	return Properties{}
 }
 
 type FeatureHandler interface {
@@ -70,12 +83,13 @@ type UpgradeableTransport interface {
 type Stream struct {
 	Properties
 
+	h         ElementHandler
 	t         Transport
 	fhs       []FeatureHandler
-	eHandlers []ElementHandler
-	mHandlers []MessageHandler
-	pHandlers []PresenceHandler
-	iHandlers []IQHandler
+	eHandlers []ElementMux
+	mHandlers []MessageMux
+	pHandlers []PresenceMux
+	iHandlers []IQMux
 
 	mode   Mode
 	strict bool
@@ -89,34 +103,39 @@ type Stream struct {
 //
 // Strict indicates how strict to RFC-6120 the stream operates. For example, if
 // strict is set to true then a stream error will for a close of the stream.
-func New(t Transport, p Properties, mode Mode, strict bool) Stream {
-	return Stream{t: t, Properties: p, mode: mode, strict: strict}
+func New(t Transport, h ElementHandler, mode Mode) Stream {
+	return Stream{t: t, h: h, mode: mode}
+}
+
+func (s Stream) SetProperties(p Properties) Stream {
+	s.Properties = p
+	return s
 }
 
 // AddElementHandlers appends the given handlers to the end of the handlers
 // for the stream.
-func (s Stream) AddElementHandlers(hdlrs ...ElementHandler) Stream {
+func (s Stream) AddElementHandlers(hdlrs ...ElementMux) Stream {
 	s.eHandlers = append(s.eHandlers, hdlrs...)
 	return s
 }
 
 // AddMessageHandlers appends the given handlers to the end of the handlers
 // for the stream.
-func (s Stream) AddMessageHandlers(hdlrs ...MessageHandler) Stream {
+func (s Stream) AddMessageHandlers(hdlrs ...MessageMux) Stream {
 	s.mHandlers = append(s.mHandlers, hdlrs...)
 	return s
 }
 
 // AddPresenceHandlers appends the given handlers to the end of the handlers
 // for the stream.
-func (s Stream) AddPresenceHandlers(hdlrs ...PresenceHandler) Stream {
+func (s Stream) AddPresenceHandlers(hdlrs ...PresenceMux) Stream {
 	s.pHandlers = append(s.pHandlers, hdlrs...)
 	return s
 }
 
 // AddIQHandlers appends the given handlers to the end of the handlers
 // for the stream.
-func (s Stream) AddIQHandlers(hdlrs ...IQHandler) Stream {
+func (s Stream) AddIQHandlers(hdlrs ...IQMux) Stream {
 	s.iHandlers = append(s.iHandlers, hdlrs...)
 	return s
 }
@@ -128,107 +147,28 @@ func (s Stream) AddFeatureHandlers(hdlrs ...FeatureHandler) Stream {
 	return s
 }
 
+func syntaxError(err error) bool {
+	_, ok := err.(*xml.SyntaxError)
+	return ok
+}
+
+func networkError(err error) bool {
+	_, ok := err.(net.Error)
+	return ok || err == io.EOF
+}
+
 // TODO(skriptble): How should errors from running the stream be handled?
 func (s Stream) Run() {
+	var err error
 	// Start the stream
 	Trace.Println("Running stream.")
-	var props Properties = s.Properties
-	var err error
-	for _, fh := range s.fhs {
-		props = fh.HandleFeature(props)
-	}
-	s.Properties = props
-
-	Trace.Println("Starting stream.")
-	s.Properties, err = s.t.Start(s.Properties)
-	if err != nil {
-		Debug.Printf("Error while starting stream: %s", err)
-	}
+	s.Properties.Status = s.Properties.Status | Restart
 
 	// Start recieving elements
 	for {
-		el, err := s.t.Next()
-		if err != nil {
-			Trace.Printf("Error recieved: %s", err)
-			if err == ErrRequireRestart {
-				s.Properties.Status = s.Properties.Status | Restart
-				Trace.Println("Restart setup")
-			}
-			if _, ok := err.(*xml.SyntaxError); ok {
-				Debug.Println("XML Syntax Error", err)
-				err = s.t.WriteElement(element.StreamErrBadFormat)
-				if s.strict {
-					s.t.Close()
-					break
-				}
-			}
-			if _, ok := err.(net.Error); ok || err == io.EOF {
-				Debug.Printf("Network error. Stopping. err: %s", err)
-				break
-			}
-			if err == ErrStreamClosed {
-				Trace.Println("Stream close recieved. Closing stream.")
-				s.t.Close()
-				break
-			}
-		}
-
-		if iq, err := stanza.TransformIQ(el); err == nil {
-			Trace.Printf("Element is IQ: %s", iq)
-			Trace.Println("Running IQ Handlers")
-			for _, h := range s.iHandlers {
-				if !h.Match(iq) {
-					continue
-				}
-				Trace.Println("Match Found")
-				var sts []stanza.Stanza
-				sts, s.Properties = h.FSM.HandleIQ(iq, s.Properties)
-				for _, st := range sts {
-					Trace.Printf("Writing stanza: %s", st)
-					s.t.WriteStanza(st)
-				}
-				break
-			}
-		}
-
-		if presence, err := stanza.TransformPresence(el); err == nil {
-			Trace.Printf("Element is Presence: %s", presence)
-			Trace.Println("Running Presence Handlers")
-			for _, h := range s.pHandlers {
-				if !h.Match(presence) {
-					continue
-				}
-				break
-			}
-		}
-
-		if message, err := stanza.TransformMessage(el); err == nil {
-			Trace.Printf("Element is Message: %s", message)
-			Trace.Println("Running Message Handlers")
-			for _, h := range s.mHandlers {
-				if !h.Match(message) {
-					continue
-				}
-			}
-		}
-
-		// Handle elements
-		Trace.Println("Running Element Handlers")
-		for _, h := range s.eHandlers {
-			if !h.Match(el) {
-				continue
-			}
-			var elems []element.Element
-			elems, s.Properties = h.FSM.HandleElement(el, s.Properties)
-			for _, elem := range elems {
-				Trace.Printf("Writing element: %s", elem)
-				s.t.WriteElement(elem)
-			}
-		}
-
 		// Restart stream as necessary
 		if s.Properties.Status&Restart != 0 {
-			Trace.Println("Restarting stream.")
+			Trace.Println("(Re)starting stream.")
 			s.Properties.Features = []element.Element{}
 			for _, fh := range s.fhs {
 				s.Properties = fh.HandleFeature(s.Properties)
@@ -243,5 +183,80 @@ func (s Stream) Run() {
 				s.Properties.Status = s.Properties.Status ^ Restart
 			}
 		}
+
+		el, err := s.t.Next()
+		if err != nil {
+			Trace.Printf("Error recieved: %s", err)
+			switch {
+			case err == ErrRequireRestart:
+				s.Properties.Status = s.Properties.Status | Restart
+				Trace.Println("Restart setup")
+				continue
+			case syntaxError(err):
+				Debug.Println("XML Syntax Error", err)
+				err = s.t.WriteElement(element.StreamErrBadFormat)
+				if s.strict {
+					s.t.Close()
+					return
+				}
+			case networkError(err):
+				Debug.Printf("Network error. Stopping. err: %s", err)
+				return
+			case err == ErrStreamClosed:
+				Trace.Println("Stream close recieved. Closing stream.")
+				s.t.Close()
+				return
+			}
+		} else {
+
+		}
+
+		var elems []element.Element
+		Trace.Printf("Element: %s", el)
+		elems, s.Properties = s.h.HandleElement(el, s.Properties)
+		for _, elem := range elems {
+			Trace.Printf("Writing element: %s", elem)
+			s.t.WriteElement(elem)
+		}
+
+		// if iq, err := stanza.TransformIQ(el); err == nil {
+		// 	Trace.Printf("Element is IQ: %s", iq)
+		// 	Trace.Println("Running IQ Handlers")
+		// 	for _, h := range s.iHandlers {
+		// 		if !h.Match(iq) {
+		// 			continue
+		// 		}
+		// 		Trace.Println("Match Found")
+		// 		var sts []stanza.Stanza
+		// 		sts, s.Properties = h.FSM.HandleIQ(iq, s.Properties)
+		// 		for _, st := range sts {
+		// 			Trace.Printf("Writing stanza: %s", st)
+		// 			s.t.WriteStanza(st)
+		// 		}
+		// 		break
+		// 	}
+		// }
+
+		// if presence, err := stanza.TransformPresence(el); err == nil {
+		// 	Trace.Printf("Element is Presence: %s", presence)
+		// 	Trace.Println("Running Presence Handlers")
+		// 	for _, h := range s.pHandlers {
+		// 		if !h.Match(presence) {
+		// 			continue
+		// 		}
+		// 		break
+		// 	}
+		// }
+
+		// if message, err := stanza.TransformMessage(el); err == nil {
+		// 	Trace.Printf("Element is Message: %s", message)
+		// 	Trace.Println("Running Message Handlers")
+		// 	for _, h := range s.mHandlers {
+		// 		if !h.Match(message) {
+		// 			continue
+		// 		}
+		// 	}
+		// }
+
 	}
 }

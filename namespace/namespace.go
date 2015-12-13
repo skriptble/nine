@@ -8,4 +8,5 @@ const (
 	Stanza = "urn:ietf:params:xml:ns:xmpp-stanzas"
 	// TODO: Move this to Ten
 	Session = "urn:ietf:params:xml:ns:xmpp-session"
+	Client  = "jabber:client"
 )

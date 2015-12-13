@@ -20,11 +20,7 @@ func NewBind() Feature {
 func (b Bind) Negotiate(el element.Element, s stream.Streamv0) (
 	ns stream.Streamv0, restart, closeStream, retry bool) {
 	// Ensure the element is an iq
-	iq, err := stanza.TransformIQ(el)
-	if err != nil {
-		// TODO(skriptble): Send a stream error
-		return s, false, false, true
-	}
+	iq := stanza.TransformIQ(el)
 	for _, child := range iq.Children {
 		if child.Tag == "bind" && child.SelectAttrValue("xmlns", "") == namespace.Bind {
 			resource := child.SelectElement("resource")

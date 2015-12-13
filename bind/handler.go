@@ -49,6 +49,7 @@ func (h Handler) HandleIQ(iq stanza.IQ, props stream.Properties) ([]stanza.Stanz
 	res := stanza.NewBindResult(iq, j)
 	sts = append(sts, res.TransformStanza())
 
+	props.Status = props.Status | stream.Bind
 	return sts, props
 }
 
