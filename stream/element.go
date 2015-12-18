@@ -94,6 +94,19 @@ func (em ElementMux) Handler(space, tag string) ElementHandler {
 	return UnsupportedStanza{}
 }
 
+// UnsupportedStanza is an ElementHandler implementation with returns an
+// unsupported-stanza-type error for all Elements it handles. This is mainly
+// used in the Element multiplexer implementation where it is returned if there
+// is no matching handler for a given Element.
+type UnsupportedStanza struct{}
+
+// HandleElement returns a stream error of unsupported-stanza-type and sets the
+// status bit on the stream to closed.
+func (us UnsupportedStanza) HandleElement(el element.Element, p Properties) ([]element.Element, Properties) {
+	p.Status = Closed
+	return []element.Element{element.StreamError.UnsupportedStanzaType}, p
+}
+
 // ElementHandler is implemented by types that can process elements. If the
 // handler modifies the properties it should return those properties. It should
 // return any elements that should be written to the stream the element came

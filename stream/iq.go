@@ -151,6 +151,20 @@ func (iqh IQMux) Match(iq stanza.IQ) bool {
 	return true
 }
 
+// ServiceUnavilable is an IQHandler implementation which returns a Service
+// Unavailable stanza for all IQs it handles. This is mainly used in the IQ
+// multiplexer implementation where it is returned if there is no matching
+// handler for a given IQ.
+type ServiceUnavailable struct{}
+
+// HandleIQ handles transforming the given stanza into a service-unavailable
+// error iq stanza.
+func (su ServiceUnavailable) HandleIQ(iq stanza.IQ, p Properties) ([]stanza.Stanza, Properties) {
+	res := stanza.NewIQError(iq, element.Stanza.ServiceUnavailable)
+
+	return []stanza.Stanza{res.TransformStanza()}, p
+}
+
 // match is a utility function for matching two strings. If the first string
 // is a * then it is treated as a wildcard and true is returned regardless of
 // the second value.
