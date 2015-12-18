@@ -29,14 +29,21 @@ var ErrRequireRestart = errors.New("Transport upgrade. Restart stream.")
 
 // Trace is the trace logger for the stream package. Outputs useful
 // tracing information.
-var Trace *log.Logger = log.New(ioutil.Discard, "[TRACE] [stream] ", log.LstdFlags|log.Lshortfile)
+var Trace = log.New(ioutil.Discard, "[TRACE] [stream] ", log.LstdFlags|log.Lshortfile)
 
 // Debug is the debug logger for the stream package. Outputs useful
 // debugging information.
-var Debug *log.Logger = log.New(ioutil.Discard, "[DEBUG] [stream] ", log.LstdFlags|log.Lshortfile)
+var Debug = log.New(ioutil.Discard, "[DEBUG] [stream] ", log.LstdFlags|log.Lshortfile)
 
+// Status represents the states of a stream. It is used to determine if the
+// stream is open, closed, needs to be restarted, is authenticated, or has been
+// bound.
 type Status int
 
+// The statuses of a stream. They are implementated as bits so each one can be
+// set indepedently. If Closed is set, all other bits are usually ignored.
+// The zero value of a status is open, which means it requires no
+// initialization.
 const (
 	Open   Status = iota
 	Closed Status = 1 << iota
@@ -52,11 +59,20 @@ const (
 // entity or receiving entity, respectively.
 type Mode int
 
+// There are two modes for a stream: Receiving and Initating. These are mostly
+// used at the transport layer to determine how things like restarting and
+// starting a stream are handled.
 const (
 	Receiving Mode = iota
 	Initiating
 )
 
+// Properties is a collection of properties of a stream. It is passed to
+// Handlers and Transports which can modify and return the properties. This is
+// mainly used as a statemachine to help determine what state a stream is in
+// and affect how Elements are handled. It is also used in the stream starting
+// and restarting process for things like the currently available features of a
+// stream.
 type Properties struct {
 	Header
 	Status
@@ -66,14 +82,21 @@ type Properties struct {
 	Features []element.Element
 }
 
+// NewProperties initializes and returns a Properties object.
 func NewProperties() Properties {
 	return Properties{}
 }
 
+// FeatureHandler is the interface implemented by a type that can modify the
+// Feature elements of a properties object. These are used to determine which
+// features are available during stream negotiation.
 type FeatureHandler interface {
 	HandleFeature(Properties) Properties
 }
 
+// Transport is the interface implemented by types that can handle low level
+// stream features such as reading an element, writing an element, and starting
+// a stream.
 type Transport interface {
 	io.Closer
 
@@ -83,6 +106,12 @@ type Transport interface {
 	Start(Properties) (Properties, error)
 }
 
+// Stream represents an RFC6120 stream. It is a semi-finate state machine:
+// the Properties object has a Status field which determines the stages of
+// stream negotiation.
+//
+// It is written in a functional style: most of the methods return a new stream
+// object instead of modifying the one passed in.
 type Stream struct {
 	Properties
 
@@ -102,6 +131,8 @@ func New(t Transport, h ElementHandler, mode Mode) Stream {
 	return Stream{t: t, h: h, mode: mode}
 }
 
+// SetProperties sets the given properties on the stream and returns the
+// stream.
 func (s Stream) SetProperties(p Properties) Stream {
 	s.Properties = p
 	return s
@@ -124,6 +155,14 @@ func networkError(err error) bool {
 	return ok || err == io.EOF
 }
 
+// Run is the main execution thread of the stream. It handles starting the
+// stream and then retrieving elements. The elements retrieved are passed to
+// the stream's element handler.
+//
+// Run will return when an error has occured or the stream has closed. This
+// should only be called once, although calling it more than once won't cause
+// a panic. The functionality of the stream if Run is called more than once is
+// undefined.
 func (s Stream) Run() {
 	var err error
 	// Start the stream

@@ -45,7 +45,7 @@ type IQHandler interface {
 	HandleIQ(stanza.IQ, Properties) ([]stanza.Stanza, Properties)
 }
 
-// Handler registers the IQHandler for the given iq type with the first child
+// Handle registers the IQHandler for the given iq type with the first child
 // element matching the space and tag.
 //
 // This method is meant to be chained. If an error occurs all following calls
@@ -134,7 +134,7 @@ func (im IQMux) HandleElement(el element.Element, p Properties) ([]element.Eleme
 	return elems, p
 }
 
-// ServiceUnavilable is an IQHandler implementation which returns a Service
+// ServiceUnavailable is an IQHandler implementation which returns a Service
 // Unavailable stanza for all IQs it handles. This is mainly used in the IQ
 // multiplexer implementation where it is returned if there is no matching
 // handler for a given IQ.
