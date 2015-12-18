@@ -86,6 +86,7 @@ var SASLSuccess = Element{Tag: "success", Attr: []Attr{{Key: "xmlns", Value: nam
 var SASLMechanisms = Element{Tag: "mechanisms", Attr: []Attr{{Key: "xmlns", Value: namespace.SASL}}}
 
 // Stanza
+// TODO: These should be implemented as Stanzas, not Elements.
 var Stanza = struct {
 	BadRequest, Conflict, FeatureNotImplemented, Forbidden, Gone, InternalServerError,
 	ItemNotFound, JidMalformed, NotAcceptable, NotAllowed, NotAuthorized, PolicyViolation,

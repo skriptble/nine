@@ -33,8 +33,6 @@ func (us UnsupportedStanza) HandleElement(el element.Element, p Properties) ([]e
 type ServiceUnavailable struct{}
 
 func (su ServiceUnavailable) HandleIQ(iq stanza.IQ, p Properties) ([]stanza.Stanza, Properties) {
-	// iq.To = p.To
-	// iq.From = p.Domain
 	res := stanza.NewIQError(iq, element.Stanza.ServiceUnavailable)
 
 	return []stanza.Stanza{res.TransformStanza()}, p
