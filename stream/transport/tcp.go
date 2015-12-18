@@ -230,6 +230,7 @@ func (t *TCP) childElements() (children []element.Token, err error) {
 	}
 }
 
+// genStreamID creates a new stream ID based on a uuid.
 func genStreamID() (string, error) {
 	id := make([]byte, 16)
 	_, err := rand.Read(id)
