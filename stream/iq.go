@@ -19,11 +19,6 @@ import (
 // IQMux will return an IQ err of service-unavilable is a stanza is sent for
 // which there is no matching space, tag, and type.
 type IQMux struct {
-	Tag   string
-	Space string
-	Type  string
-	FSM   IQHandler
-
 	handlers []iqEntry
 	err      error
 }
@@ -34,6 +29,7 @@ type iqEntry struct {
 	h          IQHandler
 }
 
+// NewIQMux initializes and returns an IQ multiplexer.
 func NewIQMux() IQMux {
 	return IQMux{}
 }
@@ -138,19 +134,6 @@ func (im IQMux) HandleElement(el element.Element, p Properties) ([]element.Eleme
 	return elems, p
 }
 
-func (iqh IQMux) Match(iq stanza.IQ) bool {
-	if !match(iqh.Type, iq.Type) {
-		return false
-	}
-
-	child := iq.First()
-	if !match(iqh.Tag, child.Tag) || !match(iqh.Space, child.Space) {
-		return false
-	}
-
-	return true
-}
-
 // ServiceUnavilable is an IQHandler implementation which returns a Service
 // Unavailable stanza for all IQs it handles. This is mainly used in the IQ
 // multiplexer implementation where it is returned if there is no matching
@@ -163,15 +146,4 @@ func (su ServiceUnavailable) HandleIQ(iq stanza.IQ, p Properties) ([]stanza.Stan
 	res := stanza.NewIQError(iq, element.Stanza.ServiceUnavailable)
 
 	return []stanza.Stanza{res.TransformStanza()}, p
-}
-
-// match is a utility function for matching two strings. If the first string
-// is a * then it is treated as a wildcard and true is returned regardless of
-// the second value.
-func match(a, b string) bool {
-	if a == "*" {
-		return true
-	}
-
-	return a == b
 }

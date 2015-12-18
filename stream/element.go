@@ -13,10 +13,6 @@ import (
 // TODO: Should there be fuzzy matching? e.g. be able to match a namespace
 // handler if there is not handler for both the namespace and tag?
 type ElementMux struct {
-	Tag   string
-	Space string
-	FSM   ElementHandler
-
 	m   []elementEntry
 	err error
 }
@@ -26,6 +22,7 @@ type elementEntry struct {
 	h          ElementHandler
 }
 
+// NewElementMux returns an initialized ElementMux.
 func NewElementMux() ElementMux {
 	return ElementMux{}
 }
@@ -113,11 +110,4 @@ func (us UnsupportedStanza) HandleElement(el element.Element, p Properties) ([]e
 // from.
 type ElementHandler interface {
 	HandleElement(element.Element, Properties) ([]element.Element, Properties)
-}
-
-func (eh ElementMux) Match(el element.Element) bool {
-	if el.Space != eh.Space || el.Tag != eh.Tag {
-		return false
-	}
-	return true
 }
