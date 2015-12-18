@@ -128,7 +128,6 @@ func networkError(err error) bool {
 	return ok || err == io.EOF
 }
 
-// TODO(skriptble): How should errors from running the stream be handled?
 func (s Stream) Run() {
 	var err error
 	// Start the stream
