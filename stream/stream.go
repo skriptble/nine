@@ -90,8 +90,7 @@ type Stream struct {
 	t   Transport
 	fhs []FeatureHandler
 
-	mode   Mode
-	strict bool
+	mode Mode
 }
 
 // New creates a new stream using the underlying trasport. The properties
@@ -99,9 +98,6 @@ type Stream struct {
 //
 // Mode allows a stream to be used as either the initiating entity or the
 // receiving entity.
-//
-// Strict indicates how strict to RFC-6120 the stream operates. For example, if
-// strict is set to true then a stream error will for a close of the stream.
 func New(t Transport, h ElementHandler, mode Mode) Stream {
 	return Stream{t: t, h: h, mode: mode}
 }
