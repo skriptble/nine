@@ -186,6 +186,12 @@ func (s Stream) Run() {
 			}
 			s.Properties, err = s.t.Start(s.Properties)
 			if err != nil {
+				if syntaxError(err) {
+					Debug.Println("XML Syntax Error", err)
+					s.t.WriteElement(element.StreamErrBadFormat)
+					s.t.Close()
+					return
+				}
 				Debug.Printf("Error while restarting stream: %s", err)
 			}
 			// If the restart bit is still on
@@ -206,10 +212,8 @@ func (s Stream) Run() {
 			case syntaxError(err):
 				Debug.Println("XML Syntax Error", err)
 				err = s.t.WriteElement(element.StreamErrBadFormat)
-				if s.strict {
-					s.t.Close()
-					return
-				}
+				s.t.Close()
+				return
 			case networkError(err):
 				Debug.Printf("Network error. Stopping. err: %s", err)
 				return

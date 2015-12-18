@@ -85,11 +85,6 @@ func (t *TCP) Next() (el element.Element, err error) {
 			t.secure = true
 			log.Println("Done upgrading connection")
 		}
-		// If we get a syntax error we need to create a new xml.Decoder as the
-		// current one will no longer return tokens, only the previous error.
-		if _, ok := err.(*xml.SyntaxError); ok {
-			t.Decoder = xml.NewDecoder(t.Conn)
-		}
 	}()
 	var token xml.Token
 	for {
