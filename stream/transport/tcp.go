@@ -68,22 +68,7 @@ func (t *TCP) WriteStanza(st stanza.Stanza) error {
 func (t *TCP) Next() (el element.Element, err error) {
 	defer func() {
 		if el.Tag == "starttls" && !t.secure {
-			err = t.WriteElement(element.TLSProceed)
-			if err != nil {
-				return
-			}
-			tlsConn := tls.Server(t.Conn, t.conf)
-			err = tlsConn.Handshake()
-			if err != nil {
-				return
-			}
-			conn := net.Conn(tlsConn)
-			t.Conn = conn
-			t.Decoder = xml.NewDecoder(conn)
-			el = element.Element{}
-			err = stream.ErrRequireRestart
-			t.secure = true
-			log.Println("Done upgrading connection")
+			el, err = t.startTLS()
 		}
 	}()
 	var token xml.Token
@@ -103,6 +88,26 @@ func (t *TCP) Next() (el element.Element, err error) {
 	}
 }
 
+func (t *TCP) startTLS() (el element.Element, err error) {
+	err = t.WriteElement(element.TLSProceed)
+	if err != nil {
+		return
+	}
+	tlsConn := tls.Server(t.Conn, t.conf)
+	err = tlsConn.Handshake()
+	if err != nil {
+		return
+	}
+	conn := net.Conn(tlsConn)
+	t.Conn = conn
+	t.Decoder = xml.NewDecoder(conn)
+	el = element.Element{}
+	err = stream.ErrRequireRestart
+	t.secure = true
+	log.Println("Done upgrading connection")
+	return
+}
+
 // Start starts or restarts the stream.
 //
 // In recieving mode, the transport will wait to recieve a stream header
@@ -120,9 +125,11 @@ func (t *TCP) Start(props stream.Properties) (stream.Properties, error) {
 	}
 
 	// We're in recieving mode
+	if props.Domain == "" {
+		return props, stream.ErrDomainNotSet
+	}
 	var el element.Element
 	var h stream.Header
-	var id string
 	var err error
 
 	el, err = t.Next()
@@ -135,20 +142,22 @@ func (t *TCP) Start(props stream.Properties) (stream.Properties, error) {
 		return props, err
 	}
 
-	id, err = genStreamID()
-	if err != nil {
+	h.ID = genStreamID()
+
+	if h.To != props.Domain {
+		h.To, h.From = h.From, props.Domain
+		b := h.WriteBytes()
+		t.Write(b)
+		err = t.WriteElement(element.StreamError.HostUnknown)
+		props.Status = stream.Closed
 		return props, err
 	}
 
-	h.ID = id
-	// TODO(skriptble): Add some domain checking hooks here
-	// Only flip the to and from if the stream isn't authenticated or bound.
-	if props.Status&(stream.Auth|stream.Bind) == 0 {
-		h.To, h.From = h.From, h.To
-	} else {
-		h.From = h.To
+	h.From, h.To = props.Domain, h.From
+	if props.To != "" {
 		h.To = props.To
 	}
+
 	props.Header = h
 
 	b := props.Header.WriteBytes()
@@ -166,9 +175,9 @@ func (t *TCP) Start(props stream.Properties) (stream.Properties, error) {
 		tlsFeature := element.StartTLS
 		if t.tlsRequired {
 			tlsFeature = tlsFeature.AddChild(element.Required)
-			// Overwrite any other features
-			ftrs.Child = []element.Token{tlsFeature}
 		}
+		// Overwrite any other features
+		ftrs.Child = []element.Token{tlsFeature}
 	}
 	err = t.WriteElement(ftrs)
 	return props, err
@@ -231,15 +240,12 @@ func (t *TCP) childElements() (children []element.Token, err error) {
 }
 
 // genStreamID creates a new stream ID based on a uuid.
-func genStreamID() (string, error) {
+func genStreamID() string {
 	id := make([]byte, 16)
-	_, err := rand.Read(id)
-	if err != nil {
-		return "", err
-	}
+	rand.Read(id)
 
 	id[8] = (id[8] | 0x80) & 0xBF
 	id[6] = (id[6] | 0x40) & 0x4F
 
-	return fmt.Sprintf("ni%xne", id), nil
+	return fmt.Sprintf("ni%xne", id)
 }
