@@ -86,13 +86,9 @@ type Transport interface {
 type Stream struct {
 	Properties
 
-	h         ElementHandler
-	t         Transport
-	fhs       []FeatureHandler
-	eHandlers []ElementMux
-	mHandlers []MessageMux
-	pHandlers []PresenceMux
-	iHandlers []IQMux
+	h   ElementHandler
+	t   Transport
+	fhs []FeatureHandler
 
 	mode   Mode
 	strict bool
@@ -112,34 +108,6 @@ func New(t Transport, h ElementHandler, mode Mode) Stream {
 
 func (s Stream) SetProperties(p Properties) Stream {
 	s.Properties = p
-	return s
-}
-
-// AddElementHandlers appends the given handlers to the end of the handlers
-// for the stream.
-func (s Stream) AddElementHandlers(hdlrs ...ElementMux) Stream {
-	s.eHandlers = append(s.eHandlers, hdlrs...)
-	return s
-}
-
-// AddMessageHandlers appends the given handlers to the end of the handlers
-// for the stream.
-func (s Stream) AddMessageHandlers(hdlrs ...MessageMux) Stream {
-	s.mHandlers = append(s.mHandlers, hdlrs...)
-	return s
-}
-
-// AddPresenceHandlers appends the given handlers to the end of the handlers
-// for the stream.
-func (s Stream) AddPresenceHandlers(hdlrs ...PresenceMux) Stream {
-	s.pHandlers = append(s.pHandlers, hdlrs...)
-	return s
-}
-
-// AddIQHandlers appends the given handlers to the end of the handlers
-// for the stream.
-func (s Stream) AddIQHandlers(hdlrs ...IQMux) Stream {
-	s.iHandlers = append(s.iHandlers, hdlrs...)
 	return s
 }
 
@@ -225,45 +193,5 @@ func (s Stream) Run() {
 			Trace.Printf("Writing element: %s", elem)
 			s.t.WriteElement(elem)
 		}
-
-		// if iq, err := stanza.TransformIQ(el); err == nil {
-		// 	Trace.Printf("Element is IQ: %s", iq)
-		// 	Trace.Println("Running IQ Handlers")
-		// 	for _, h := range s.iHandlers {
-		// 		if !h.Match(iq) {
-		// 			continue
-		// 		}
-		// 		Trace.Println("Match Found")
-		// 		var sts []stanza.Stanza
-		// 		sts, s.Properties = h.FSM.HandleIQ(iq, s.Properties)
-		// 		for _, st := range sts {
-		// 			Trace.Printf("Writing stanza: %s", st)
-		// 			s.t.WriteStanza(st)
-		// 		}
-		// 		break
-		// 	}
-		// }
-
-		// if presence, err := stanza.TransformPresence(el); err == nil {
-		// 	Trace.Printf("Element is Presence: %s", presence)
-		// 	Trace.Println("Running Presence Handlers")
-		// 	for _, h := range s.pHandlers {
-		// 		if !h.Match(presence) {
-		// 			continue
-		// 		}
-		// 		break
-		// 	}
-		// }
-
-		// if message, err := stanza.TransformMessage(el); err == nil {
-		// 	Trace.Printf("Element is Message: %s", message)
-		// 	Trace.Println("Running Message Handlers")
-		// 	for _, h := range s.mHandlers {
-		// 		if !h.Match(message) {
-		// 			continue
-		// 		}
-		// 	}
-		// }
-
 	}
 }
