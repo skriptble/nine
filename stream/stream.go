@@ -83,14 +83,6 @@ type Transport interface {
 	Start(Properties) (Properties, error)
 }
 
-type UpgradeableTransport interface {
-	Transport
-
-	// Upgrade upgrades the unlderying transport. Returns true if the transport
-	// was upgraded TLS.
-	Upgrade() (Transport, bool)
-}
-
 type Stream struct {
 	Properties
 

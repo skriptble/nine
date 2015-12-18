@@ -103,23 +103,6 @@ func (t *TCP) Next() (el element.Element, err error) {
 	}
 }
 
-func (t *TCP) Upgrade() (stream.Transport, bool) {
-	err := t.WriteElement(element.TLSProceed)
-	if err != nil {
-		return t, false
-	}
-	tlsConn := tls.Server(t.Conn, t.conf)
-	err = tlsConn.Handshake()
-	if err != nil {
-		return t, false
-	}
-	conn := net.Conn(tlsConn)
-	t.Conn = conn
-	t.Decoder = xml.NewDecoder(conn)
-	return t, true
-	// return NewTCP(conn, t.mode, t.conf, t.tlsRequired), true
-}
-
 // Start starts or restarts the stream.
 //
 // In recieving mode, the transport will wait to recieve a stream header
