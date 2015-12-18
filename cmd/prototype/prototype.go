@@ -72,13 +72,12 @@ func main() {
 			log.Fatal(iqHandler.Err())
 		}
 
-		pHandler := stream.NewPresenceMux()
-
 		elHandler := stream.NewElementMux().
 			Handle(namespace.SASL, "auth", saslHandler).
 			Handle(namespace.SASL, "response", saslHandler).
 			Handle(namespace.Client, "iq", iqHandler).
-			Handle(namespace.Client, "presence", pHandler)
+			Handle(namespace.Client, "presence", stream.Blackhole{}).
+			Handle(namespace.Client, "message", stream.Blackhole{})
 
 		if elHandler.Err() != nil {
 			log.Fatal(iqHandler.Err())

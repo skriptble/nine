@@ -104,6 +104,17 @@ func (us UnsupportedStanza) HandleElement(el element.Element, p Properties) ([]e
 	return []element.Element{element.StreamError.UnsupportedStanzaType}, p
 }
 
+// Blackhole is an ElementHandler implementation which does nothing with the
+// handled element and returns no elements. This is mainly used as a
+// placeholder for message and presence stanzas in nine since the handling of
+// those types of stanzas is beyond the scope of RFC6120.
+type Blackhole struct{}
+
+// HandleElement does nothing and returns the Properties unchanged.
+func (bh Blackhole) HandleElement(_ element.Element, p Properties) ([]element.Element, Properties) {
+	return []element.Element{}, p
+}
+
 // ElementHandler is implemented by types that can process elements. If the
 // handler modifies the properties it should return those properties. It should
 // return any elements that should be written to the stream the element came
