@@ -33,7 +33,7 @@ func TestElementWrite(t *testing.T) {
 			},
 		},
 	}
-	want = `<namespace:foo foo:bar="val" bar2="val2">`
+	want = `<namespace:foo foo:bar='val' bar2='val2'>`
 	want += `<foobar>Random Data Whee</foobar></namespace:foo>`
 	n, err = el.WriteTo(&buf)
 	if err != nil {
@@ -41,7 +41,7 @@ func TestElementWrite(t *testing.T) {
 	}
 	if len(want) != int(n) {
 		t.Error("Incorrect number of bytes written to io.Writer.")
-		t.Errorf("\nWant:%d\nGot :%d", len(want), got)
+		t.Errorf("\nWant:%d\nGot :%d", len(want), n)
 	}
 	got = buf.String()
 	if got != want {
