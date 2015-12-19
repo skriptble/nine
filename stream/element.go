@@ -7,6 +7,14 @@ import (
 	"github.com/skriptble/nine/element"
 )
 
+// ErrEmptySpaceTag is the error set on an ElementMux when Handle is called
+// with an empty namespace or empty tag.
+var ErrEmptySpaceTag = errors.New("space and tag cannot be empty")
+
+// ErrNilElementHandler is the error set on an ElementMux when Handle is called
+// with nil as the parameter for ElementHandler.
+var ErrNilElementHandler = errors.New("ElementHandler cannot be nil")
+
 // ElementMux is a stream element multiplexer. It matches elements based on the
 // namespace and tag and calls the handler that matches.
 //
@@ -48,16 +56,16 @@ func (em ElementMux) Handle(space, tag string, h ElementHandler) ElementMux {
 		return em
 	}
 	if space == "" || tag == "" {
-		em.err = errors.New("space and tag cannot be empty")
+		em.err = ErrEmptySpaceTag
 		return em
 	}
 	if h == nil {
-		em.err = errors.New("ElementHandler cannot be nil")
+		em.err = ErrNilElementHandler
 		return em
 	}
 	for _, entry := range em.m {
 		if entry.space == space && entry.tag == tag {
-			em.err = fmt.Errorf("stream: multiple registrations for %s:%s", space, tag)
+			em.err = fmt.Errorf("stream: multiple registrations for <%s:%s>", space, tag)
 			return em
 		}
 	}
