@@ -8,6 +8,14 @@ import (
 	"github.com/skriptble/nine/element/stanza"
 )
 
+// ErrNilIQHandler is returned from an IQMux.Handle call if the provided
+// IQHandler is nil
+var ErrNilIQHandler = errors.New("IQHandler cannot be nil")
+
+// ErrSpaceTagTypeEmpty is returned from an IQMux.Handle call if the space,
+// tag, or type is empty.
+var ErrSpaceTagTypeEmpty = errors.New("space, tag, or stanzaType cannot be empty")
+
 // IQMux is a iq stanza multiplexer. It matches IQ stanzas based on the type of
 // stanza and the space and tag of the first child element of the stanza.
 //
@@ -67,16 +75,16 @@ func (im IQMux) Handle(space, tag, stanzaType string, h IQHandler) IQMux {
 		return im
 	}
 	if space == "" || tag == "" || stanzaType == "" {
-		im.err = errors.New("space, tag, or stanzaType cannot be empty")
+		im.err = ErrSpaceTagTypeEmpty
 		return im
 	}
 	if h == nil {
-		im.err = errors.New("IQHandler cannot be nil")
+		im.err = ErrNilIQHandler
 		return im
 	}
 	for _, entry := range im.handlers {
 		if entry.space == space && entry.tag == tag && entry.stanzaType == stanzaType {
-			im.err = fmt.Errorf("Multiple registrations for type %s and tag %s:%s", stanzaType, space, tag)
+			im.err = fmt.Errorf("Multiple registrations for type %s and tag <%s:%s>", stanzaType, space, tag)
 			return im
 		}
 	}
