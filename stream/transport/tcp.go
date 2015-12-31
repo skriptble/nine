@@ -60,7 +60,7 @@ func (t *TCP) WriteStanza(st stanza.Stanza) error {
 // handling stanzas and non-stanza elements such as those used during SASL
 // neogitation.
 //
-// Since an element is the only valdi thing an XML stream can return, this is
+// Since an element is the only valid thing an XML stream can return, this is
 // the only method to read data from a transport.
 //
 // This transport hides the starttls upgrade feature so if a starttls element
