@@ -19,7 +19,7 @@ func NewHandler() Handler {
 	return Handler{}
 }
 
-func (h Handler) HandleFeature(props stream.Properties) stream.Properties {
+func (h Handler) GenerateFeature(props stream.Properties) stream.Properties {
 	if props.Status&stream.Bind != 0 || props.Status&stream.Auth == 0 {
 		return props
 	}

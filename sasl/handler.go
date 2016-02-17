@@ -24,7 +24,7 @@ type Mechanism interface {
 	Authenticate(data string, props stream.Properties) (elems []element.Element, p stream.Properties, challenge bool)
 }
 
-func (h *Handler) HandleFeature(props stream.Properties) stream.Properties {
+func (h *Handler) GenerateFeature(props stream.Properties) stream.Properties {
 	if props.Status&stream.Auth != 0 {
 		return props
 	}

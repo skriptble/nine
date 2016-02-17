@@ -95,7 +95,7 @@ func NewProperties() Properties {
 // Feature elements of a properties object. These are used to determine which
 // features are available during stream negotiation.
 type FeatureGenerator interface {
-	HandleFeature(Properties) Properties
+	GenerateFeature(Properties) Properties
 }
 
 // Transport is the interface implemented by types that can handle low level
@@ -180,7 +180,7 @@ func (s Stream) Run() {
 			Trace.Println("(Re)starting stream.")
 			s.Properties.Features = []element.Element{}
 			for _, fh := range s.fhs {
-				s.Properties = fh.HandleFeature(s.Properties)
+				s.Properties = fh.GenerateFeature(s.Properties)
 			}
 			s.Properties, err = s.t.Start(s.Properties)
 			if err != nil {
