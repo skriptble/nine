@@ -9,4 +9,7 @@ const (
 	// TODO: Move this to Ten
 	Session = "urn:ietf:params:xml:ns:xmpp-session"
 	Client  = "jabber:client"
+	// TODO: Move this to gabble
+	BOSH = "http://jabber.org/protocol/httpbind"
+	XMPP = "urn:xmpp:xbosh"
 )
