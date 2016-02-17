@@ -219,6 +219,7 @@ func (s Stream) Run() {
 				Trace.Println("Stream close recieved. Closing stream.")
 				s.t.Close()
 				return
+				// TODO: Add a default case. This should probably close the stream.
 			}
 		} else {
 
