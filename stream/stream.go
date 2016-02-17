@@ -234,3 +234,11 @@ func (s Stream) Run() {
 		}
 	}
 }
+
+func (s Stream) WriteElement(el element.Element) error {
+	return s.t.WriteElement(el)
+}
+
+func (s Stream) WriteStanza(st stanza.Stanza) error {
+	return s.t.WriteStanza(st)
+}
