@@ -94,7 +94,7 @@ func NewProperties() Properties {
 // FeatureHandler is the interface implemented by a type that can modify the
 // Feature elements of a properties object. These are used to determine which
 // features are available during stream negotiation.
-type FeatureHandler interface {
+type FeatureGenerator interface {
 	HandleFeature(Properties) Properties
 }
 
@@ -121,7 +121,7 @@ type Stream struct {
 
 	h   ElementHandler
 	t   Transport
-	fhs []FeatureHandler
+	fhs []FeatureGenerator
 
 	mode Mode
 }
@@ -144,7 +144,7 @@ func (s Stream) SetProperties(p Properties) Stream {
 
 // AddFeatureHandlers appends the given handlers to the end of the handlers
 // for the stream.
-func (s Stream) AddFeatureHandlers(hdlrs ...FeatureHandler) Stream {
+func (s Stream) AddFeatureHandlers(hdlrs ...FeatureGenerator) Stream {
 	s.fhs = append(s.fhs, hdlrs...)
 	return s
 }
