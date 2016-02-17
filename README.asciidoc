@@ -1,3 +1,20 @@
 = 6+1+2+0 = nine
 
-An XMPP core library
+Nine is an XMPP 6120 library. It contains the components necessary to build an XMPP server or client.
+The library is broken into several packages, each of which handles a specific piece
+of the 6120 specification's functionality. These include:
+
+Stream:: The stream package is responsible for separating the underlying transport layers
+(TCP implemented here, BOSH implemented in link:http://github.com/skriptble/gabble[gabble])
+from the XMPP application logic (stanza handling).
+SASL:: Handles the SASL related functionality.
+Namespace:: Maps constants to XMPP namespaces. This helps in avoiding mistyping a namespace.
+JID:: Handles JID creation and validation.
+Element:: Handles element parsing, marshalling, and manipulation.
+Element/Stanza:: Handles stanza specific transformation and manipulation.
+Bind:: Handles stream negotiation binding.
+
+== Prototype
+Under the cmd/prototype directory is a prototype implementation of an RFC 6120
+XMPP server. It only handles stream negotiation, however it can be expanded to handle
+other types of XMPP logic. The prototype requires a signed certificate and key to startup properly. A self signed key works for this purpose.
