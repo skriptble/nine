@@ -179,6 +179,7 @@ func (s Stream) Run() {
 		if s.Properties.Status&Restart != 0 {
 			Trace.Println("(Re)starting stream.")
 			s.Properties.Features = []element.Element{}
+			// TODO(skriptble): This should only be called for streams in receiving mode.
 			for _, fh := range s.fhs {
 				s.Properties = fh.GenerateFeature(s.Properties)
 			}

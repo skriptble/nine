@@ -71,6 +71,16 @@ func (t *TCP) Next() (el element.Element, err error) {
 			el, err = t.startTLS()
 		}
 	}()
+	defer func() {
+		if el.Tag == "features" && !t.secure {
+			for _, ch := range el.ChildElements() {
+				if ch.Tag == "starttls" {
+					el, err = t.startTLS()
+					break
+				}
+			}
+		}
+	}()
 	var token xml.Token
 	for {
 		token, err = t.Token()
@@ -89,11 +99,25 @@ func (t *TCP) Next() (el element.Element, err error) {
 }
 
 func (t *TCP) startTLS() (el element.Element, err error) {
-	err = t.WriteElement(element.TLSProceed)
-	if err != nil {
-		return
+	var tlsConn *tls.Conn
+	if t.mode == stream.Initiating {
+		err = t.WriteElement(element.StartTLS)
+		if err != nil {
+			return
+		}
+		el, err = t.Next()
+		if err != nil || el.Tag != element.TLSProceed.Tag {
+			return
+		}
+		tlsConn = tls.Client(t.Conn, t.conf)
+	} else {
+		err = t.WriteElement(element.TLSProceed)
+		if err != nil {
+			return
+		}
+		tlsConn = tls.Server(t.Conn, t.conf)
 	}
-	tlsConn := tls.Server(t.Conn, t.conf)
+
 	err = tlsConn.Handshake()
 	if err != nil {
 		return

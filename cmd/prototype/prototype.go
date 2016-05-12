@@ -43,9 +43,9 @@ func main() {
 
 	TLSConfig = &tls.Config{
 		Certificates: []tls.Certificate{cert},
-		RootCAs:      certpool,
-		ClientAuth:   tls.VerifyClientCertIfGiven,
-		ServerName:   "localhost",
+		// RootCAs:      certpool,
+		ClientAuth: tls.VerifyClientCertIfGiven,
+		ServerName: "localhost",
 	}
 
 	ln, err := net.Listen("tcp", ":5222")
