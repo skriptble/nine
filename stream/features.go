@@ -19,7 +19,7 @@ var ErrSpaceTagEmpty = errors.New("space or tag cannot be empty")
 // the namespace and tag of the child elements. When multiple children have
 // matching handlers the handler with the higher weight is used.
 // If two handlers have the same weight, the last one to be registered will
-// be choosen.
+// be chosen.
 type FeaturesMux struct {
 	handlers []featuresEntry
 	err      error
