@@ -172,7 +172,7 @@ func TestIQMuxHandleElement(t *testing.T) {
 	hdlr = stubIQHandler{iq: iq}
 	im = NewIQMux().Handle("foo", "bar", string(stanza.IQSet), hdlr)
 	if im.Err() != nil {
-		t.Errorf("An unexpected error occured: %s", im.Err())
+		t.Errorf("An unexpected error occurred: %s", im.Err())
 	}
 	want = []element.Element{iq.TransformElement()}
 	got, _ = im.HandleElement(iq.TransformElement(), props)

@@ -17,7 +17,7 @@ type Handler struct {
 
 // Mechanism is the interface implemented by SASL Mechanisms.
 type Mechanism interface {
-	// Authenticate is the method used when data is recieved. Elements returned
+	// Authenticate is the method used when data is received. Elements returned
 	// are written directly to the stream. The modified stream properties will
 	// be assigned to the stream. If challenge is true, this mechanism will be
 	// used for any subsequent response elements.

@@ -173,7 +173,7 @@ func (s Stream) Run() {
 	Trace.Println("Running stream.")
 	s.Properties.Status = s.Properties.Status | Restart
 
-	// Start recieving elements
+	// Start receiving elements
 	for {
 		// Restart stream as necessary
 		if s.Properties.Status&Restart != 0 {

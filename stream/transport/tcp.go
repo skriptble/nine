@@ -134,7 +134,7 @@ func (t *TCP) startTLS() (el element.Element, err error) {
 
 // Start starts or restarts the stream.
 //
-// In recieving mode, the transport will wait to recieve a stream header
+// In receiving mode, the transport will wait to recieve a stream header
 // from the initiating entity, then sends its own header and the stream
 // features. This transport will add the starttls feature under certain
 // conditions.
@@ -148,7 +148,7 @@ func (t *TCP) Start(props stream.Properties) (stream.Properties, error) {
 		return props, err
 	}
 
-	// We're in recieving mode
+	// We're in receiving mode
 	if props.Domain == "" {
 		return props, stream.ErrDomainNotSet
 	}
