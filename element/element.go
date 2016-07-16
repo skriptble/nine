@@ -24,6 +24,7 @@ type Token interface {
 // Element represents an XML element.
 type Element struct {
 	Space, Tag string
+	Namespaces map[string]string
 	Attr       []Attr
 	Child      []Token
 }
@@ -32,7 +33,7 @@ type Element struct {
 // space and tag if it contains a colon.
 func New(tag string) Element {
 	space, tag := decompose(tag)
-	return Element{Space: space, Tag: tag}
+	return Element{Space: space, Tag: tag, Namespaces: make(map[string]string)}
 }
 
 // AddAttr creates an Attr and appends it to the element. The key is decomposed
@@ -163,6 +164,16 @@ func (e Element) SelectElement(tag string) Element {
 		}
 	}
 	return NoElementExists
+}
+
+// MatchNamespace returns true if the namespace for this element matches the
+// namespace provided.
+func (e Element) MatchNamespace(ns string) bool {
+	elNS, ok := e.Namespaces[e.Space]
+	if !ok {
+		return false
+	}
+	return elNS == ns
 }
 
 func (e Element) write(w *bufio.Writer) {

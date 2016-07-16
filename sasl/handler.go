@@ -102,11 +102,12 @@ func (pm plainMech) Authenticate(data string, props stream.Properties) ([]elemen
 	}
 	if identity != "" {
 		user = identity
+	} else {
+		// TODO: Add a way to determine the address of the server for the domain
+		// part of the jid (do it better than this.)
+		user += "@" + props.Domain
 	}
 
-	// TODO: Add a way to determine the address of the server for the domain
-	// part of the jid (do it better than this.)
-	user += "@" + props.Domain
 	j := jid.New(user)
 	props.Header.To = j.String()
 	props.Status = props.Status | stream.Restart | stream.Auth

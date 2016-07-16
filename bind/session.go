@@ -16,6 +16,15 @@ func NewSessionHandler() SessionHandler {
 	return SessionHandler{}
 }
 
+func (sh SessionHandler) GenerateFeature(props stream.Properties) stream.Properties {
+	if props.Status&stream.Bind != 0 || props.Status&stream.Auth == 0 {
+		return props
+	}
+
+	props.Features = append(props.Features, element.Session)
+	return props
+}
+
 func (sh SessionHandler) HandleFeature(props stream.Properties) stream.Properties {
 	if props.Status&stream.Bind != 0 || props.Status&stream.Auth == 0 {
 		return props

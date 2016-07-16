@@ -104,9 +104,9 @@ func (im IQMux) Err() error {
 //
 // TODO: Handler should return ServiceUnavailable for get and set IQs and
 // should do nothing if the type is result or error.
-func (im IQMux) Handler(space, tag, sType string) IQHandler {
+func (im IQMux) Handler(el element.Element, sType string) IQHandler {
 	for _, entry := range im.handlers {
-		if space == entry.space && tag == entry.tag && sType == entry.stanzaType {
+		if el.MatchNamespace(entry.space) && el.Tag == entry.tag && sType == entry.stanzaType {
 			return entry.h
 		}
 	}
@@ -134,7 +134,7 @@ func (im IQMux) HandleElement(el element.Element, p Properties) ([]element.Eleme
 	}
 	var elems = []element.Element{}
 	child := iq.First()
-	h := im.Handler(child.Space, child.Tag, iq.Type)
+	h := im.Handler(child, iq.Type)
 	sts, p := h.HandleIQ(iq, p)
 	for _, st := range sts {
 		elems = append(elems, st.TransformElement())

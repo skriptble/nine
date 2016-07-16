@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"runtime/debug"
 
 	"github.com/skriptble/nine/element"
 	"github.com/skriptble/nine/element/stanza"
@@ -168,6 +169,17 @@ func networkError(err error) bool {
 // a panic. The functionality of the stream if Run is called more than once is
 // undefined.
 func (s Stream) Run() {
+	defer func() {
+		if r := recover(); r != nil {
+			// Something panicked so our state is probably bad, cleanly shut
+			// down and return.
+			Debug.Println("panic occurred during Run. Cleaning up")
+			Debug.Printf("%s\n", debug.Stack())
+			s.t.WriteElement(element.StreamError.InternalServerError)
+			s.t.Close()
+			return
+		}
+	}()
 	var err error
 	// Start the stream
 	Trace.Println("Running stream.")
@@ -242,4 +254,8 @@ func (s Stream) WriteElement(el element.Element) error {
 
 func (s Stream) WriteStanza(st stanza.Stanza) error {
 	return s.t.WriteStanza(st)
+}
+
+func (s Stream) Close() error {
+	return s.t.Close()
 }

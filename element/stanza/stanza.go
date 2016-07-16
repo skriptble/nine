@@ -21,6 +21,7 @@ type Stanza struct {
 	Children   []element.Element
 	Data       string
 	Tag, Space string
+	Namespaces map[string]string
 }
 
 func (s Stanza) String() string {
@@ -85,6 +86,17 @@ func (s Stanza) TransformElement() element.Element {
 	}
 	if s.Lang != "" {
 		attrs = append(attrs, element.Attr{Key: "lang", Space: "xml", Value: s.Lang})
+	}
+	if s.Namespaces != nil {
+		for alias, ns := range s.Namespaces {
+			// Handle top level namespace
+			if alias == "" {
+				attrs = append(attrs, element.Attr{Key: "xmlns", Value: ns})
+				continue
+			}
+
+			attrs = append(attrs, element.Attr{Key: alias, Space: "xmlns", Value: ns})
+		}
 	}
 	el := element.Element{Tag: s.Tag, Space: s.Space, Attr: attrs}
 	if s.Data != "" {

@@ -24,6 +24,7 @@ func NewBindResult(iq IQ, j jid.JID) BindResult {
 	from := jid.New(iq.From)
 
 	s := NewStanza(to, from, iq.ID, string(IQResult))
+	s.Namespaces = map[string]string{"": namespace.Client}
 
 	result := element.Bind.AddChild(
 		element.JID.SetText(j.String()),

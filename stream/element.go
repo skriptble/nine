@@ -83,19 +83,19 @@ func (em ElementMux) Err() error {
 // HandleElement dispatches the element to the handler who can handle the space
 // and tag combination.
 func (em ElementMux) HandleElement(el element.Element, p Properties) ([]element.Element, Properties) {
-	h := em.Handler(el.Space, el.Tag)
+	h := em.Handler(el)
 	return h.HandleElement(el, p)
 }
 
 // Handler returns the ElementHandler for the given space and tag pair. Handler
 // will always return a non-nil ElementHandler.
-func (em ElementMux) Handler(space, tag string) ElementHandler {
+func (em ElementMux) Handler(el element.Element) ElementHandler {
 	for _, entry := range em.m {
-		if space == entry.space && tag == entry.tag {
+		if el.MatchNamespace(entry.space) && el.Tag == entry.tag {
 			return entry.h
 		}
 	}
-	Trace.Printf("No handlers for %s:%s", space, tag)
+	Trace.Printf("No handlers for %s:%s", el.Space, el.Tag)
 	return UnsupportedStanza{}
 }
 

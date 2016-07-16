@@ -289,6 +289,48 @@ func TestDecompose(t *testing.T) {
 	}
 }
 
+func TestMatchNamespace(t *testing.T) {
+	t.Parallel()
+
+	var el Element
+	var want, got bool
+	var ns string
+	// Should return false if element Namespaces map is nil
+	want = false
+	el = Element{Namespaces: nil}
+	ns = "foobar"
+	got = el.MatchNamespace(ns)
+	if got != want {
+		t.Error("Should return false if element.Namespaces is nil")
+	}
+
+	// Should return false if namespace does not match
+	want = false
+	ns = "http://foo.bar"
+	el = Element{Space: "foo", Tag: "bar", Namespaces: map[string]string{"foo": "http://incorrect.wrong"}}
+	got = el.MatchNamespace(ns)
+	if got != want {
+		t.Error("Should return false if namespace does not match")
+	}
+
+	// Should return true if namespace does match
+	want = true
+	ns = "http://foo.bar"
+	el = Element{Space: "foo", Tag: "bar", Namespaces: map[string]string{"foo": ns}}
+	got = el.MatchNamespace(ns)
+	if got != want {
+		t.Error("Should return true if namespace matches")
+	}
+	// Should return true if namespace matches default namespace
+	want = true
+	ns = "http://foo.bar"
+	el = Element{Tag: "bar", Namespaces: map[string]string{"": ns}}
+	got = el.MatchNamespace(ns)
+	if got != want {
+		t.Error("Should return true if namespace default matches")
+	}
+}
+
 type errWriter struct{ err error }
 
 func (ew errWriter) Write(_ []byte) (int, error) { return 0, ew.err }
