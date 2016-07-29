@@ -33,15 +33,35 @@ type Element struct {
 // space and tag if it contains a colon.
 func New(tag string) Element {
 	space, tag := decompose(tag)
-	return Element{Space: space, Tag: tag, Namespaces: make(map[string]string)}
+	ns := make(map[string]string)
+	return Element{Space: space, Tag: tag, Namespaces: ns}
 }
 
 // AddAttr creates an Attr and appends it to the element. The key is decomposed
 // into a space and key if it contains a colon:
 func (e Element) AddAttr(key, value string) Element {
 	space, key := decompose(key)
+	if space == "xmlns" {
+		// Add this namespace to the namespace map so MatchNamespace will find
+		// it.
+		e.Namespaces[key] = value
+	}
+	if key == "xmlns" {
+		// Change the element's namespace
+		e.Namespaces[""] = value
+	}
 	attr := Attr{Key: key, Space: space, Value: value}
 	e.Attr = append(e.Attr, attr)
+	return e
+}
+
+// AddNamespace adds a namespace to the given element. This should be used
+// instead of AddAttr so that the MatchNamespace function will pick it up.
+func (e Element) AddNamespace(key, value string) Element {
+	if e.Namespaces == nil {
+		e.Namespaces = make(map[string]string)
+	}
+	e.Namespaces[key] = value
 	return e
 }
 

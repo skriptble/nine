@@ -107,12 +107,14 @@ func TestIQMuxHandler(t *testing.T) {
 	var want, got IQHandler
 	var entry iqEntry
 	var im IQMux
+	var el element.Element
 
 	want = stubIQHandler{}
+	el = element.New("handler").AddNamespace("", "stub")
 	entry = iqEntry{space: "stub", tag: "handler", stanzaType: "get", h: want}
 	im.handlers = append(im.handlers, entry)
 	// Handler should return a matching IQHandler
-	got = im.Handler("stub", "handler", "get")
+	got = im.Handler(el, "get")
 	if !reflect.DeepEqual(want, got) {
 		t.Error("Handler should return a matching IQHandler.")
 		t.Errorf("\nWant:%+v\nGot :%+v", want, got)
@@ -120,7 +122,8 @@ func TestIQMuxHandler(t *testing.T) {
 
 	// Handler should return ServiceUnavailable if no handlers match
 	want = ServiceUnavailable{}
-	got = im.Handler("foo", "bar", "set")
+	el = element.New("bar").AddAttr("xmlns", "foo")
+	got = im.Handler(el, "set")
 	if got != want {
 		t.Error("Handler should return a ServiceUnavailable if no handlers match.")
 		t.Errorf("\nWant:%+v\nGot :%+v", want, got)
@@ -168,7 +171,7 @@ func TestIQMuxHandleElement(t *testing.T) {
 	// HandleElement should call the given handler and return the stanzas as
 	// elements
 	props.Status = props.Status | Bind
-	iq.Children = []element.Element{element.New("foo:bar")}
+	iq.Children = []element.Element{element.New("bar").AddAttr("xmlns", "foo")}
 	hdlr = stubIQHandler{iq: iq}
 	im = NewIQMux().Handle("foo", "bar", string(stanza.IQSet), hdlr)
 	if im.Err() != nil {

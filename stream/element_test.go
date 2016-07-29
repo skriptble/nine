@@ -92,7 +92,7 @@ func TestElementMuxHandleElement(t *testing.T) {
 	t.Parallel()
 
 	var sh = stubHandler{}
-	var el = element.New("foo:bar")
+	var el = element.New("bar").AddAttr("xmlns", "foo")
 	var entry = elementEntry{space: "foo", tag: "bar", h: &sh}
 	var em = NewElementMux()
 	em.m = append(em.m, entry)
@@ -110,12 +110,14 @@ func TestElementMuxHandler(t *testing.T) {
 	var want, got ElementHandler
 	var entry elementEntry
 	var em ElementMux
+	var el element.Element
 
 	want = Blackhole{}
 	entry = elementEntry{space: "black", tag: "hole", h: want}
+	el = element.New("hole").AddAttr("xmlns", "black")
 	em.m = append(em.m, entry)
 	// Handler should return a matching ElementHandler
-	got = em.Handler("black", "hole")
+	got = em.Handler(el)
 	if got != want {
 		t.Error("Handler should return a matching ElementHandler.")
 		t.Errorf("\nWant:%+v\nGot :%+v", want, got)
@@ -123,7 +125,8 @@ func TestElementMuxHandler(t *testing.T) {
 
 	// Handler should return UnsupportedStanza if no handlers match
 	want = UnsupportedStanza{}
-	got = em.Handler("foo", "bar")
+	el = element.New("bar").AddAttr("xmlns", "foo")
+	got = em.Handler(el)
 	if got != want {
 		t.Error("Handler should return a UnsupportedStanza if no handlers match.")
 		t.Errorf("\nWant:%+v\nGot :%+v", want, got)

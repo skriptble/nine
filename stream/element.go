@@ -21,8 +21,9 @@ var ErrNilElementHandler = errors.New("ElementHandler cannot be nil")
 // TODO: Should there be fuzzy matching? e.g. be able to match a namespace
 // handler if there is not handler for both the namespace and tag?
 type ElementMux struct {
-	m   []elementEntry
-	err error
+	m              []elementEntry
+	err            error
+	DefaultHandler ElementHandler
 }
 
 type elementEntry struct {
@@ -96,7 +97,10 @@ func (em ElementMux) Handler(el element.Element) ElementHandler {
 		}
 	}
 	Trace.Printf("No handlers for %s:%s", el.Space, el.Tag)
-	return UnsupportedStanza{}
+	if em.DefaultHandler == nil {
+		return UnsupportedStanza{}
+	}
+	return em.DefaultHandler
 }
 
 // UnsupportedStanza is an ElementHandler implementation with returns an
