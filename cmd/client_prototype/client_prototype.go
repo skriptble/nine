@@ -48,7 +48,7 @@ func main() {
 		panic(err)
 	}
 
-	tsp := transport.NewTCP(conn, stream.Initiating, config, true)
+	tsp := transport.NewReceivingTCP(conn, stream.Initiating, config, true)
 	fm := stream.NewFeaturesMux()
 	strm := stream.New(tsp, fm, stream.Initiating)
 	strm.Header = stream.Header{

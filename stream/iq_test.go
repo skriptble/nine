@@ -143,31 +143,6 @@ func TestIQMuxHandleElement(t *testing.T) {
 	from := jid.New("quux@foo.bar")
 	iq := stanza.NewIQResult(to, from, "random-id", stanza.IQSet)
 
-	// If the stream is not authorized, HandleElement should return a stream
-	// error of not-authorized
-	im = NewIQMux()
-	want = []element.Element{element.StreamError.NotAuthorized}
-	got, _ = im.HandleElement(iq.TransformElement(), props)
-	if !reflect.DeepEqual(want, got) {
-		t.Error("If the stream is not authorized, HandleElement should not-authorized.")
-		t.Errorf("\nWant:%+v\nGot :%+v", want, got)
-	}
-
-	// If the stream is not bound, HandleElement should return a stream error
-	// of not authorized if the stanza is addressed to an entity outside the
-	// stream
-	im = NewIQMux()
-	want = []element.Element{element.StreamError.NotAuthorized}
-	props.Status = props.Status | Auth
-	props.Domain = "localhost"
-	props.To = "bar@localhost"
-	got, _ = im.HandleElement(iq.TransformElement(), props)
-	if !reflect.DeepEqual(want, got) {
-		t.Error("If the stream is not bound, HandleElement should not-authorized")
-		t.Error("if the stanza is addressed to an entity outside of the stream.")
-		t.Errorf("\nWant:%+v\nGot :%+v", want, got)
-	}
-
 	// HandleElement should call the given handler and return the stanzas as
 	// elements
 	props.Status = props.Status | Bind
@@ -178,7 +153,7 @@ func TestIQMuxHandleElement(t *testing.T) {
 		t.Errorf("An unexpected error occured: %s", im.Err())
 	}
 	want = []element.Element{iq.TransformElement()}
-	got, _ = im.HandleElement(iq.TransformElement(), props)
+	got, _, _, _ = im.HandleElement(iq.TransformElement())
 	if !reflect.DeepEqual(want, got) {
 		t.Error("HandleElement should call the correct handler and return the stanzas as elements.")
 		t.Errorf("\nWant:%+v\nGot :%+v", want, got)
@@ -192,15 +167,11 @@ func TestServiceUnavailable(t *testing.T) {
 	// element of unsupported-stanza-type
 	var want, got []stanza.Stanza
 	var iq stanza.IQ
-	var props Properties
 
 	st := stanza.NewIQError(iq, element.Stanza.ServiceUnavailable).TransformStanza()
 	want = []stanza.Stanza{st}
 	su := ServiceUnavailable{}
-	got, props = su.HandleIQ(iq, Properties{})
-	if !reflect.DeepEqual(Properties{}, props) {
-		t.Error("ServiceUnavailable should return properties unaltered. Got %+v", props)
-	}
+	got, _, _, _ = su.HandleIQ(iq)
 
 	if !reflect.DeepEqual(want, got) {
 		t.Error("ServiceUnavailable should return a single stanza of service-unavailable.")
@@ -210,6 +181,8 @@ func TestServiceUnavailable(t *testing.T) {
 
 type stubIQHandler struct{ iq stanza.IQ }
 
-func (sih stubIQHandler) HandleIQ(_ stanza.IQ, _ Properties) ([]stanza.Stanza, Properties) {
-	return []stanza.Stanza{sih.iq.TransformStanza()}, Properties{}
+func (sih stubIQHandler) HandleIQ(_ stanza.IQ) ([]stanza.Stanza, StateChange, bool, bool) {
+	return []stanza.Stanza{sih.iq.TransformStanza()}, nil, false, false
 }
+
+func (sih stubIQHandler) Update(_, _ string) {}

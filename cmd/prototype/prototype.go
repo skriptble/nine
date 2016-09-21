@@ -60,7 +60,7 @@ func main() {
 		}
 
 		saslHandler := sasl.NewHandler(map[string]sasl.Mechanism{
-			"PLAIN": sasl.NewPlainMechanism(sasl.FakePlain{}),
+			"PLAIN": sasl.NewPlainMechanism(sasl.FakePlain{}, "localhost"),
 		})
 		bindHandler := bind.NewHandler()
 		sessionHandler := bind.NewSessionHandler()
@@ -72,7 +72,7 @@ func main() {
 			log.Fatal(iqHandler.Err())
 		}
 
-		elHandler := stream.NewElementMux().
+		elHandler := stream.ElementMuxV2{}.
 			Handle(namespace.SASL, "auth", saslHandler).
 			Handle(namespace.SASL, "response", saslHandler).
 			Handle(namespace.Client, "iq", iqHandler).
@@ -83,18 +83,17 @@ func main() {
 			log.Fatal(iqHandler.Err())
 		}
 
-		fhs := []stream.FeatureGenerator{
+		fgs := []stream.FeatureGenerator{
 			saslHandler,
 			bindHandler,
 			// sessionHandler,
 		}
 
-		tp := transport.NewTCP(conn, stream.Receiving, TLSConfig, true)
+		tp := transport.NewReceivingTCP(conn, TLSConfig, true, "localhost", fgs)
 		props := stream.NewProperties()
 		props.Domain = "localhost"
-		s := stream.New(tp, elHandler, stream.Receiving).
-			AddFeatureHandlers(fhs...).
-			SetProperties(props)
+		s := stream.New(tp, elHandler, stream.Receiving)
+		bindHandler.RegisterStream(s)
 		go s.Run()
 	}
 }

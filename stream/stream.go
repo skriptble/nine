@@ -92,37 +92,35 @@ func NewProperties() Properties {
 	return Properties{}
 }
 
-// FeatureHandler is the interface implemented by a type that can modify the
-// Feature elements of a properties object. These are used to determine which
-// features are available during stream negotiation.
+// FeatureGenerator is the interface implemented by a type that can create and
+// return a feature element. These features are then sent to an initiating
+// entity during stream negotiation. If no feature element was generated, ok
+// should be false.
 type FeatureGenerator interface {
-	GenerateFeature(Properties) Properties
+	GenerateFeature() (el element.Element, ok bool)
 }
 
 // Transport is the interface implemented by types that can handle low level
 // stream features such as reading an element, writing an element, and starting
 // a stream.
 type Transport interface {
-	io.Closer
+	io.WriteCloser
 
 	WriteElement(el element.Element) error
 	WriteStanza(st stanza.Stanza) error
 	Next() (el element.Element, err error)
-	Start(Properties) (Properties, error)
+	Start() (close bool, err error)
 }
 
-// Stream represents an RFC6120 stream. It is a semi-finate state machine:
-// the Properties object has a Status field which determines the stages of
-// stream negotiation.
+// Stream represents an RFC6120 stream.
 //
 // It is written in a functional style: most of the methods return a new stream
 // object instead of modifying the one passed in.
 type Stream struct {
-	Properties
-
-	h   ElementHandler
-	t   Transport
-	fhs []FeatureGenerator
+	h       ElementHandlerV2
+	t       Transport
+	restart bool
+	close   bool
 
 	mode Mode
 }
@@ -132,22 +130,8 @@ type Stream struct {
 //
 // Mode allows a stream to be used as either the initiating entity or the
 // receiving entity.
-func New(t Transport, h ElementHandler, mode Mode) Stream {
+func New(t Transport, h ElementHandlerV2, mode Mode) Stream {
 	return Stream{t: t, h: h, mode: mode}
-}
-
-// SetProperties sets the given properties on the stream and returns the
-// stream.
-func (s Stream) SetProperties(p Properties) Stream {
-	s.Properties = p
-	return s
-}
-
-// AddFeatureHandlers appends the given handlers to the end of the handlers
-// for the stream.
-func (s Stream) AddFeatureHandlers(hdlrs ...FeatureGenerator) Stream {
-	s.fhs = append(s.fhs, hdlrs...)
-	return s
 }
 
 func syntaxError(err error) bool {
@@ -183,19 +167,26 @@ func (s Stream) Run() {
 	var err error
 	// Start the stream
 	Trace.Println("Running stream.")
-	s.Properties.Status = s.Properties.Status | Restart
+	Trace.Println("Starting stream.")
+	s.close, err = s.t.Start()
+	if err != nil {
+		if syntaxError(err) {
+			Debug.Println("XML Syntax Error", err)
+			s.t.WriteElement(element.StreamErrBadFormat)
+			s.t.Close()
+			return
+		}
+		Debug.Printf("Error while starting stream: %s", err)
+	}
 
+	var elems []element.Element
 	// Start recieving elements
 	for {
 		// Restart stream as necessary
-		if s.Properties.Status&Restart != 0 {
-			Trace.Println("(Re)starting stream.")
-			s.Properties.Features = []element.Element{}
+		if s.restart {
+			Trace.Println("Restarting stream.")
 			// TODO(skriptble): This should only be called for streams in receiving mode.
-			for _, fh := range s.fhs {
-				s.Properties = fh.GenerateFeature(s.Properties)
-			}
-			s.Properties, err = s.t.Start(s.Properties)
+			s.close, err = s.t.Start()
 			if err != nil {
 				if syntaxError(err) {
 					Debug.Println("XML Syntax Error", err)
@@ -205,19 +196,15 @@ func (s Stream) Run() {
 				}
 				Debug.Printf("Error while restarting stream: %s", err)
 			}
-			// If the restart bit is still on
-			// TODO: Should this always be handled by the transport?
-			if s.Properties.Status&Restart != 0 {
-				s.Properties.Status = s.Properties.Status ^ Restart
-			}
+			s.restart = false
 		}
 
 		el, err := s.t.Next()
 		if err != nil {
-			Trace.Printf("Error recieved: %s", err)
+			Trace.Printf("Error received: %s", err)
 			switch {
 			case err == ErrRequireRestart:
-				s.Properties.Status = s.Properties.Status | Restart
+				s.restart = true
 				Trace.Println("Restart setup")
 				continue
 			case syntaxError(err):
@@ -229,21 +216,25 @@ func (s Stream) Run() {
 				Debug.Printf("Network error. Stopping. err: %s", err)
 				return
 			case err == ErrStreamClosed:
-				Trace.Println("Stream close recieved. Closing stream.")
+				Trace.Println("Stream close received. Closing stream.")
+				s.t.Write([]byte("</stream:stream>"))
 				s.t.Close()
 				return
 				// TODO: Add a default case. This should probably close the stream.
 			}
-		} else {
-
 		}
 
-		var elems []element.Element
 		Trace.Printf("Element: %s", el)
-		elems, s.Properties = s.h.HandleElement(el, s.Properties)
+		elems, s.restart, s.close = s.h.HandleElement(el)
 		for _, elem := range elems {
 			Trace.Printf("Writing element: %s", elem)
 			s.t.WriteElement(elem)
+		}
+		if s.close {
+			Trace.Println("Handler closed stream. Closing stream.")
+			s.t.Write([]byte("</stream:stream>"))
+			s.t.Close()
+			return
 		}
 	}
 }

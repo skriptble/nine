@@ -50,7 +50,8 @@ func NewIQMux() IQMux {
 // stanzas are request response, it doesn't make a ton of sense that another
 // element would be generated.
 type IQHandler interface {
-	HandleIQ(stanza.IQ, Properties) ([]stanza.Stanza, Properties)
+	HandleIQ(stanza.IQ) (s []stanza.Stanza, sc StateChange, restart, close bool)
+	MuxerEntry
 }
 
 // Handle registers the IQHandler for the given iq type with the first child
@@ -119,27 +120,23 @@ func (im IQMux) Handler(el element.Element, sType string) IQHandler {
 //
 // TODO: This method is very receiving entity (server) focused. Redesign this
 // to handle the initiating entity usecase.
-func (im IQMux) HandleElement(el element.Element, p Properties) ([]element.Element, Properties) {
+func (im IQMux) HandleElement(el element.Element) (
+	elems []element.Element, sc StateChange, restart, close bool) {
+	var sts []stanza.Stanza
 	iq := stanza.TransformIQ(el)
-	// If the stream is not authenticated or bound and is addressed not to the
-	// server or the user
-	if p.Status&Auth == 0 {
-		// TODO: Close the stream by setting the closed bit on status.
-		return []element.Element{element.StreamError.NotAuthorized}, p
-	}
-	if p.Status&Bind == 0 && iq.To != "" {
-		if iq.To != p.Domain && iq.To != p.To {
-			return []element.Element{element.StreamError.NotAuthorized}, p
-		}
-	}
-	var elems = []element.Element{}
 	child := iq.First()
 	h := im.Handler(child, iq.Type)
-	sts, p := h.HandleIQ(iq, p)
+	sts, sc, restart, close = h.HandleIQ(iq)
 	for _, st := range sts {
 		elems = append(elems, st.TransformElement())
 	}
-	return elems, p
+	return elems, sc, restart, close
+}
+
+func (im IQMux) Update(state, payload string) {
+	for _, entry := range im.handlers {
+		entry.h.Update(state, payload)
+	}
 }
 
 // ServiceUnavailable is an IQHandler implementation which returns a Service
@@ -150,8 +147,10 @@ type ServiceUnavailable struct{}
 
 // HandleIQ handles transforming the given stanza into a service-unavailable
 // error iq stanza.
-func (su ServiceUnavailable) HandleIQ(iq stanza.IQ, p Properties) ([]stanza.Stanza, Properties) {
+func (su ServiceUnavailable) HandleIQ(iq stanza.IQ) ([]stanza.Stanza, StateChange, bool, bool) {
 	res := stanza.NewIQError(iq, element.Stanza.ServiceUnavailable)
 
-	return []stanza.Stanza{res.TransformStanza()}, p
+	return []stanza.Stanza{res.TransformStanza()}, nil, false, false
 }
+
+func (su ServiceUnavailable) Update(_, _ string) {}

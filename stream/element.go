@@ -15,6 +15,10 @@ var ErrEmptySpaceTag = errors.New("space and tag cannot be empty")
 // with nil as the parameter for ElementHandler.
 var ErrNilElementHandler = errors.New("ElementHandler cannot be nil")
 
+// ErrNilElementMuxerEntry is the error set on an ElementMuxV2 when Handle is
+// called with nil as the parameter for ElementMuxerEntry.
+var ErrNilElementMuxerEntry = errors.New("ElementMuxerEntry cannot be nil")
+
 // ElementMux is a stream element multiplexer. It matches elements based on the
 // namespace and tag and calls the handler that matches.
 //
@@ -116,6 +120,20 @@ func (us UnsupportedStanza) HandleElement(el element.Element, p Properties) ([]e
 	return []element.Element{element.StreamError.UnsupportedStanzaType}, p
 }
 
+// UnsupportedStanza is an ElementHandler implementation with returns an
+// unsupported-stanza-type error for all Elements it handles. This is mainly
+// used in the Element multiplexer implementation where it is returned if there
+// is no matching handler for a given Element.
+type UnsupportedStanzaV2 struct{}
+
+// HandleElement returns a stream error of unsupported-stanza-type and sets the
+// status bit on the stream to closed.
+func (us UnsupportedStanzaV2) HandleElement(el element.Element) ([]element.Element, StateChange, bool, bool) {
+	return []element.Element{element.StreamError.UnsupportedStanzaType}, nil, false, true
+}
+
+func (us UnsupportedStanzaV2) Update(_, _ string) {}
+
 // Blackhole is an ElementHandler implementation which does nothing with the
 // handled element and returns no elements. This is mainly used as a
 // placeholder for message and presence stanzas in nine since the handling of
@@ -123,9 +141,11 @@ func (us UnsupportedStanza) HandleElement(el element.Element, p Properties) ([]e
 type Blackhole struct{}
 
 // HandleElement does nothing and returns the Properties unchanged.
-func (bh Blackhole) HandleElement(_ element.Element, p Properties) ([]element.Element, Properties) {
-	return []element.Element{}, p
+func (bh Blackhole) HandleElement(_ element.Element) ([]element.Element, StateChange, bool, bool) {
+	return []element.Element{}, nil, false, false
 }
+
+func (bh Blackhole) Update(_, _ string) {}
 
 // ElementHandler is implemented by types that can process elements. If the
 // handler modifies the properties it should return those properties. It should
@@ -133,4 +153,38 @@ func (bh Blackhole) HandleElement(_ element.Element, p Properties) ([]element.El
 // from.
 type ElementHandler interface {
 	HandleElement(element.Element, Properties) ([]element.Element, Properties)
+}
+
+// ElementHandlerV2 is implemented by types that can process elements. It should
+// return any elements that should be written to the stream the element came
+// from. If the handler resulted in the need for a stream restart, restart
+// should be true. If the handler resulted in the need to close the stream, e.g.
+// too many failed authentication attempts, close should be true.
+type ElementHandlerV2 interface {
+	HandleElement(element.Element) (els []element.Element, restart, close bool)
+}
+
+// ElementMuxerEntry is implemented by types that can be used as an entry in
+// an ElementMuxer. In addition to being able to handle elements, it can also
+// indicate a stream state change by returning a non-empty string as the state
+// value when StateChange is called. This will cause the muxer to call the
+// Update method on all of the ElementMuxerEntrys it contains, passing it the
+// state and payload string returned from StateChange.
+type ElementMuxerEntry interface {
+	HandleElement(element.Element) (els []element.Element, sc StateChange, restart, close bool)
+	MuxerEntry
+}
+
+// StateChange allows a muxer entry to update the stream state for a muxer.
+// It is meant to be used when the result of a handler has caused a change
+// to the state of the stream, e.g. authentication or binding of a
+// resource. When state is a non-empty string it results in the
+// UpdateHandler method being called for all ElementMuxerEntrys for the
+// muxer.
+type StateChange func() (state, payload string)
+
+type MuxerEntry interface {
+	// Update allows an ElementMuxerEntry to change its internal state in
+	// response to a state change initiated by the handling of an element.
+	Update(state, payload string)
 }

@@ -12,29 +12,54 @@ import (
 	"github.com/skriptble/nine/stream"
 )
 
+// RouteRegister is the interface implemented by routers. This allows the bind
+// handler to notify a router when a user has been bound.
+type RouteRegister interface {
+	RegisterRoute(jid jid.JID, s stream.Stream)
+}
+
+var _ stream.IQHandler = &Handler{}
+
 type Handler struct {
+	fg  func() (el element.Element, ok bool)
+	jid string
+	rr  RouteRegister
+	s   stream.Stream
 }
 
-func NewHandler() Handler {
-	return Handler{}
+func NewHandler() *Handler {
+	h := new(Handler)
+	h.fg = h.negotiateFeature
+	return h
 }
 
-func (h Handler) GenerateFeature(props stream.Properties) stream.Properties {
-	if props.Status&stream.Bind != 0 || props.Status&stream.Auth == 0 {
-		return props
-	}
-
-	props.Features = append(props.Features, element.Bind)
-	return props
+func (h *Handler) RegisterStream(s stream.Stream) {
+	h.s = s
 }
 
-func (h Handler) HandleIQ(iq stanza.IQ, props stream.Properties) ([]stanza.Stanza, stream.Properties) {
-	var sts []stanza.Stanza
+func (h *Handler) AddRouteRegister(rr RouteRegister) {
+	h.rr = rr
+}
+
+func (h *Handler) GenerateFeature() (element.Element, bool) {
+	return h.fg()
+}
+
+func (h *Handler) negotiateFeature() (el element.Element, ok bool) {
+	return element.Bind, true
+}
+
+func (h *Handler) negotiateFeatureComplete() (el element.Element, ok bool) {
+	return
+}
+
+func (h *Handler) HandleIQ(iq stanza.IQ) (
+	sts []stanza.Stanza, sc stream.StateChange, restart, close bool) {
 	// ensure we have a bind request
 	req, err := stanza.TransformBindRequest(iq)
 	if err != nil {
 		// TODO: Should this return an error?
-		return sts, props
+		return
 	}
 	if req.Resource == "" {
 		// TODO: Create a random resource generator
@@ -43,14 +68,30 @@ func (h Handler) HandleIQ(iq stanza.IQ, props stream.Properties) ([]stanza.Stanz
 
 	// Should do some resource validation here.
 	// TODO: Need to use proper jids here.
-	props.Header.To += "/" + req.Resource
+	str := h.jid + "/" + req.Resource
 
-	j := jid.New(props.Header.To)
+	// TODO(skriptble): Check if the jid is nil, if it is return an error
+	j := jid.New(str)
 	res := stanza.NewBindResult(iq, j)
 	sts = append(sts, res.TransformStanza())
 
-	props.Status = props.Status | stream.Bind
-	return sts, props
+	sc = stream.StateChange(func() (state, payload string) {
+		return "bind", j.String()
+	})
+	if h.rr != nil {
+		h.rr.RegisterRoute(j, h.s)
+	}
+	return
+}
+
+func (h *Handler) Update(state, payload string) {
+	// TODO(skriptble): Add debugging traces
+	switch state {
+	case "authenticated":
+		h.jid = payload
+	case "bind":
+		h.fg = h.negotiateFeatureComplete
+	}
 }
 
 func genResourceID() string {

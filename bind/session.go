@@ -7,39 +7,46 @@ import (
 	"github.com/skriptble/nine/stream"
 )
 
+var _ stream.IQHandler = &SessionHandler{}
+
 // SessionHandler belongs in ten but is a placeholder here for now to get
 // clients to connect and hold a connection.
 type SessionHandler struct {
+	fg func() (el element.Element, ok bool)
 }
 
-func NewSessionHandler() SessionHandler {
-	return SessionHandler{}
+func NewSessionHandler() *SessionHandler {
+	sh := new(SessionHandler)
+	sh.fg = sh.negotiateFeature
+	return sh
 }
 
-func (sh SessionHandler) GenerateFeature(props stream.Properties) stream.Properties {
-	if props.Status&stream.Bind != 0 || props.Status&stream.Auth == 0 {
-		return props
-	}
-
-	props.Features = append(props.Features, element.Session)
-	return props
+func (sh *SessionHandler) GenerateFeature() (el element.Element, ok bool) {
+	return sh.fg()
 }
 
-func (sh SessionHandler) HandleFeature(props stream.Properties) stream.Properties {
-	if props.Status&stream.Bind != 0 || props.Status&stream.Auth == 0 {
-		return props
-	}
-
-	props.Features = append(props.Features, element.Session)
-	return props
+func (sh *SessionHandler) negotiateFeature() (el element.Element, ok bool) {
+	return element.Session, true
 }
 
-func (sh SessionHandler) HandleIQ(iq stanza.IQ, props stream.Properties) (
-	[]stanza.Stanza, stream.Properties) {
-	var sts []stanza.Stanza
+func (sh *SessionHandler) negotiateFeatureComplete() (el element.Element, ok bool) {
+	return
+}
+
+func (sh *SessionHandler) HandleIQ(iq stanza.IQ) (
+	sts []stanza.Stanza, sc stream.StateChange, restart, close bool) {
 	to := jid.New(iq.From)
 	from := jid.New(iq.To)
 	res := stanza.NewIQResult(to, from, iq.ID, stanza.IQResult)
 	sts = append(sts, res.TransformStanza())
-	return sts, props
+	sc = stream.StateChange(func() (state, payload string) {
+		return "session-established", ""
+	})
+	return
+}
+
+func (sh *SessionHandler) Update(state, payload string) {
+	if state == "session-established" {
+		sh.fg = sh.negotiateFeatureComplete
+	}
 }

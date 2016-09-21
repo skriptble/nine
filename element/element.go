@@ -55,6 +55,15 @@ func (e Element) AddAttr(key, value string) Element {
 	return e
 }
 
+func (e Element) ResetNamespace() Element {
+	for key, value := range e.Namespaces {
+		if e.Space == value {
+			e.Space = key
+		}
+	}
+	return e
+}
+
 // AddNamespace adds a namespace to the given element. This should be used
 // instead of AddAttr so that the MatchNamespace function will pick it up.
 func (e Element) AddNamespace(key, value string) Element {
@@ -240,12 +249,12 @@ func (c CharData) write(w *bufio.Writer) {
 }
 
 func decompose(str string) (space, key string) {
-	strs := strings.SplitN(str, ":", 2)
-	if (len(strs)) < 2 {
+	idx := strings.LastIndex(str, ":")
+	if idx < 0 {
 		return "", str
 	}
 
-	return strs[0], strs[1]
+	return str[:idx], str[idx+1:]
 }
 
 var xmlReplacer = strings.NewReplacer(
